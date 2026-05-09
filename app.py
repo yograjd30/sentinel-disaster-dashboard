@@ -7,9 +7,14 @@ from datetime import datetime, timezone
 app = Flask(__name__)
 CORS(app)
 
-# Database Configuration
-basedir = os.path.abspath(os.path.dirname(__name__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'sentinel.db')
+# Database Configuration — use /tmp on Vercel (read-only fs), local dir otherwise
+IS_VERCEL = os.environ.get('VERCEL', False)
+if IS_VERCEL:
+    DB_PATH = '/tmp/sentinel.db'
+else:
+    basedir = os.path.abspath(os.path.dirname(__name__))
+    DB_PATH = os.path.join(basedir, 'sentinel.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + DB_PATH
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
