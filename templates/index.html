@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SENTINEL — Smart Disaster Resource Allocation</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#020817',
+                        surface: '#0f172a',
+                        primary: '#0ea5e9',
+                        danger: '#ef4444',
+                        warning: '#f59e0b',
+                        success: '#10b981',
+                        border: '#1e293b'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="bg-background text-gray-100 font-sans h-screen flex overflow-hidden">
+
+    <!-- Login Screen -->
+    <div id="login-modal" class="fixed inset-0 z-50 flex bg-background">
+        <!-- Left Side -->
+        <div class="w-1/2 bg-[#040f24] relative flex flex-col justify-between p-12 lg:p-20 overflow-hidden">
+            <!-- Decorative gradient/glow -->
+            <div class="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-primary/20 blur-[120px] rounded-full pointer-events-none"></div>
+            
+            <div class="z-10 flex items-center">
+                <div class="bg-primary p-2 rounded-lg mr-3 shadow-[0_0_15px_rgba(14,165,233,0.5)]">
+                    <i data-lucide="radio" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-widest text-white leading-tight">SENTINEL</h1>
+                    <p class="text-[10px] text-gray-400 tracking-widest uppercase">Disaster Ops Platform</p>
+                </div>
+            </div>
+            
+            <div class="z-10 max-w-lg mt-auto mb-auto">
+                <h2 class="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">Coordinated response, in seconds.</h2>
+                <p class="text-gray-400 text-lg mb-8 leading-relaxed">
+                    Authenticate with your operational role to access live telemetry, AI-powered resource recommendations and the alert broadcast console.
+                </p>
+                <div class="font-mono text-sm">
+                    <div class="text-success mb-1">> secure channel established</div>
+                    <div class="text-primary">> awaiting credentials</div>
+                </div>
+            </div>
+            
+            <div class="z-10 flex justify-between items-center text-xs text-gray-500 font-mono">
+                <span id="login-timestamp">2026-05-07T05:18:06.226Z</span>
+                <span>simulation mode</span>
+            </div>
+        </div>
+
+        <!-- Right Side -->
+        <div class="w-1/2 bg-[#020817] relative flex flex-col justify-center items-center p-8 border-l border-gray-800" style="background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px); background-size: 30px 30px;">
+            <div class="w-full max-w-xl">
+                <h2 class="text-3xl font-bold text-white mb-2">Sign in</h2>
+                <p class="text-gray-400 mb-8">Select your operational role to continue.</p>
+
+                <div class="grid grid-cols-3 gap-4 mb-8">
+                    <!-- Admin -->
+                    <button type="button" onclick="selectRole('admin')" id="role-btn-admin" class="role-btn text-left p-4 rounded-xl border border-gray-700 bg-gray-900/50 hover:bg-gray-800/80 transition-all focus:outline-none relative group">
+                        <i data-lucide="shield" class="w-6 h-6 text-gray-400 mb-3 group-hover:text-white transition-colors"></i>
+                        <h3 class="text-white font-medium mb-1">Admin</h3>
+                        <p class="text-xs text-gray-500">Full control</p>
+                    </button>
+
+                    <!-- Rescue Team -->
+                    <button type="button" onclick="selectRole('rescue')" id="role-btn-rescue" class="role-btn text-left p-4 rounded-xl border border-gray-700 bg-gray-900/50 hover:bg-gray-800/80 transition-all focus:outline-none relative group">
+                        <i data-lucide="users" class="w-6 h-6 text-gray-400 mb-3 group-hover:text-white transition-colors"></i>
+                        <h3 class="text-white font-medium mb-1">Rescue Team</h3>
+                        <p class="text-xs text-gray-500">Field response</p>
+                    </button>
+
+                    <!-- Public User -->
+                    <button type="button" onclick="selectRole('citizen')" id="role-btn-citizen" class="role-btn text-left p-4 rounded-xl border border-gray-700 bg-gray-900/50 hover:bg-gray-800/80 transition-all focus:outline-none relative group">
+                        <i data-lucide="user" class="w-6 h-6 text-gray-400 mb-3 group-hover:text-white transition-colors"></i>
+                        <h3 class="text-white font-medium mb-1">Public User</h3>
+                        <p class="text-xs text-gray-500">Alerts & reporting</p>
+                    </button>
+                </div>
+
+                <form id="login-form" onsubmit="handleLogin(event)" class="space-y-5">
+                    <div>
+                        <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Email / Username</label>
+                        <input type="text" id="login-username" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors" required placeholder="you@agency.gov">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Password</label>
+                        <input type="password" id="login-password" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors" required placeholder="••••••••">
+                    </div>
+                    
+                    <p class="text-[11px] text-gray-500 mb-4">Demo mode — default credentials populated on role selection.</p>
+                    
+                    <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-gray-900 font-bold text-sm py-3.5 rounded-lg transition-colors shadow-[0_0_20px_rgba(14,165,233,0.3)] hover:shadow-[0_0_25px_rgba(14,165,233,0.5)]">
+                        Enter Command Center
+                    </button>
+                </form>
+                
+                <div class="mt-6 text-center">
+                    <a href="#" class="text-xs text-gray-400 hover:text-primary transition-colors">New to SENTINEL? <span class="text-primary font-medium">Create account</span></a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Resource Modal -->
+    <div id="edit-resource-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div class="bg-surface border border-border p-6 rounded-xl shadow-2xl w-full max-w-md">
+            <div class="flex justify-between items-center mb-6 border-b border-border pb-4">
+                <h2 class="text-xl font-bold text-white" id="edit-modal-title">Edit Inventory</h2>
+                <button onclick="closeEditModal()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form id="edit-resource-form" onsubmit="saveResourceEdit(event)">
+                <input type="hidden" id="edit-depot-id">
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase mb-2">Food</label>
+                        <input type="text" id="edit-food" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase mb-2">Water</label>
+                        <input type="text" id="edit-water" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase mb-2">Medical</label>
+                        <input type="text" id="edit-medical" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase mb-2">Teams</label>
+                        <input type="text" id="edit-teams" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary">
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-surface border-r border-border flex flex-col transition-all duration-300">
+        <div class="h-16 flex items-center px-6 border-b border-border">
+            <i data-lucide="shield-alert" class="w-8 h-8 text-primary mr-3"></i>
+            <span class="text-xl font-bold tracking-wider text-white">SENTINEL</span>
+        </div>
+        
+        <nav class="flex-1 overflow-y-auto py-4">
+            <ul class="space-y-1 px-3">
+                <li id="nav-item-command"><a href="#" onclick="switchTab('command')" class="nav-link active flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 hover:text-primary"><i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i> Command Center</a></li>
+                <li id="nav-item-weather"><a href="#" onclick="switchTab('weather')" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="cloud-lightning" class="w-5 h-5 mr-3"></i> Weather Intel</a></li>
+                <li id="nav-item-alerts"><a href="#" onclick="switchTab('alerts')" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="bell-ring" class="w-5 h-5 mr-3"></i> Active Alerts <span id="alert-badge" class="ml-auto bg-danger text-white text-xs px-2 py-0.5 rounded-full">3</span></a></li>
+                <li id="nav-item-map"><a href="#" onclick="switchTab('map')" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="map" class="w-5 h-5 mr-3"></i> Tactical Map</a></li>
+                <li id="nav-item-resources"><a href="#" onclick="switchTab('resources')" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="package" class="w-5 h-5 mr-3"></i> Resources</a></li>
+                <li id="nav-item-ai"><a href="#" onclick="switchTab('ai')" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="cpu" class="w-5 h-5 mr-3"></i> AI Allocation</a></li>
+                <li id="nav-item-reports"><a href="#" onclick="switchTab('reports')" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="clipboard-list" class="w-5 h-5 mr-3"></i> Field Reports</a></li>
+                <li id="nav-item-precautions"><a href="#" onclick="switchTab('precautions')" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="shield-check" class="w-5 h-5 mr-3"></i> Precautions</a></li>
+            </ul>
+        </nav>
+        
+        <div class="p-4 border-t border-border mt-auto">
+            <a href="#" id="admin-settings-btn" class="flex items-center px-3 py-2.5 rounded-md text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
+                <i data-lucide="settings" class="w-5 h-5 mr-3"></i> Admin Settings
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col relative overflow-hidden">
+        <!-- Header -->
+        <header class="h-16 bg-surface border-b border-border flex items-center justify-between px-6 z-10 shadow-sm">
+            <div class="flex items-center">
+                <div class="flex items-center space-x-2">
+                    <span class="relative flex h-3 w-3">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-3 w-3 bg-success"></span>
+                    </span>
+                    <span class="text-sm font-medium text-success uppercase tracking-wider">System Operational</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-6">
+                <div class="flex items-center text-gray-300 font-mono text-sm bg-gray-800 px-3 py-1.5 rounded-md border border-gray-700">
+                    <i data-lucide="clock" class="w-4 h-4 mr-2 text-primary"></i>
+                    <span id="live-clock">00:00:00</span>
+                </div>
+                
+                <button class="relative p-2 text-gray-400 hover:text-white transition-colors" onclick="toggleNotifications()">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                    <span id="header-bell-badge" class="absolute top-1 right-1 w-2 h-2 bg-danger rounded-full hidden"></span>
+                </button>
+                
+                <!-- Notifications Dropdown -->
+                <div id="notifications-dropdown" class="hidden absolute top-16 right-20 w-80 bg-surface border border-border rounded-lg shadow-xl z-50 overflow-hidden">
+                    <div class="p-3 border-b border-border bg-gray-800/50 flex justify-between items-center">
+                        <h3 class="font-semibold text-sm">Notifications</h3>
+                        <button onclick="clearNotifications()" class="text-xs text-primary hover:text-white">Clear All</button>
+                    </div>
+                    <div id="notifications-list" class="max-h-64 overflow-y-auto">
+                        <div class="p-4 text-center text-sm text-gray-500">No new notifications</div>
+                    </div>
+                </div>
+                
+                <div id="user-profile-icon" class="rounded-full bg-gradient-to-tr from-primary to-blue-600 flex items-center justify-center border-2 border-surface cursor-pointer shadow-lg" style="width: 2rem; height: 2rem;">
+                    <span id="user-initials" class="text-xs font-bold text-white">AD</span>
+                </div>
+                <div class="flex flex-col ml-[-1rem]">
+                    <span id="user-name-display" class="text-sm font-semibold text-white">Admin</span>
+                    <span id="user-role-display" class="text-xs text-gray-400 capitalize">Role</span>
+                </div>
+                <button onclick="handleLogout()" class="text-gray-400 hover:text-white ml-2"><i data-lucide="log-out" class="w-5 h-5"></i></button>
+            </div>
+        </header>
+
+        <!-- Scrollable content area -->
+        <div class="flex-1 overflow-auto p-6 bg-background relative" id="content-area">
+            
+            <!-- Command Center Tab -->
+            <div id="tab-command" class="tab-content block animate-fade-in">
+                <h1 class="text-3xl font-bold text-white mb-2">Command Center</h1>
+                <p class="text-gray-400 mb-6">Real-time overview of disaster response operations and resource metrics.</p>
+                
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-surface p-5 rounded-xl border border-border shadow-sm relative overflow-hidden group hover:border-primary/50 transition-colors">
+                        <div class="absolute -right-4 -top-4 w-24 h-24 bg-danger/10 rounded-full blur-xl group-hover:bg-danger/20 transition-all"></div>
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm font-medium text-gray-400 mb-1">Active Critical Alerts</p>
+                                <h3 class="text-3xl font-bold text-white" id="stat-alerts">0</h3>
+                            </div>
+                            <div class="p-3 bg-danger/20 rounded-lg">
+                                <i data-lucide="alert-triangle" class="w-6 h-6 text-danger"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center text-sm text-danger font-medium">
+                            <i data-lucide="trending-up" class="w-4 h-4 mr-1"></i> +2 since last hour
+                        </div>
+                    </div>
+                    
+                    <div class="bg-surface p-5 rounded-xl border border-border shadow-sm relative overflow-hidden group hover:border-primary/50 transition-colors">
+                        <div class="absolute -right-4 -top-4 w-24 h-24 bg-primary/10 rounded-full blur-xl group-hover:bg-primary/20 transition-all"></div>
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm font-medium text-gray-400 mb-1">Active Response Teams</p>
+                                <h3 class="text-3xl font-bold text-white" id="stat-teams">0</h3>
+                            </div>
+                            <div class="p-3 bg-primary/20 rounded-lg">
+                                <i data-lucide="users" class="w-6 h-6 text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center text-sm text-success font-medium">
+                            <i data-lucide="check-circle" class="w-4 h-4 mr-1"></i> All teams operational
+                        </div>
+                    </div>
+                    
+                    <div class="bg-surface p-5 rounded-xl border border-border shadow-sm relative overflow-hidden group hover:border-warning/50 transition-colors">
+                        <div class="absolute -right-4 -top-4 w-24 h-24 bg-warning/10 rounded-full blur-xl group-hover:bg-warning/20 transition-all"></div>
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm font-medium text-gray-400 mb-1">Resources Deployed</p>
+                                <h3 class="text-3xl font-bold text-white" id="stat-resources">0</h3>
+                            </div>
+                            <div class="p-3 bg-warning/20 rounded-lg">
+                                <i data-lucide="truck" class="w-6 h-6 text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center text-sm text-gray-400">
+                            <i data-lucide="activity" class="w-4 h-4 mr-1"></i> 65% utilization rate
+                        </div>
+                    </div>
+                    
+                    <div class="bg-surface p-5 rounded-xl border border-border shadow-sm relative overflow-hidden group hover:border-success/50 transition-colors">
+                        <div class="absolute -right-4 -top-4 w-24 h-24 bg-success/10 rounded-full blur-xl group-hover:bg-success/20 transition-all"></div>
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm font-medium text-gray-400 mb-1">Safe Zones Active</p>
+                                <h3 class="text-3xl font-bold text-white" id="stat-zones">0</h3>
+                            </div>
+                            <div class="p-3 bg-success/20 rounded-lg">
+                                <i data-lucide="home" class="w-6 h-6 text-success"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center text-sm text-gray-400">
+                            <i data-lucide="users" class="w-4 h-4 mr-1"></i> ~12,500 capacity
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-surface rounded-xl border border-border flex flex-col" style="height:400px">
+                        <div class="px-5 pt-5 pb-2">
+                            <h2 class="text-sm font-bold tracking-widest text-white uppercase">NATIONAL RISK TREND</h2>
+                            <p class="text-xs text-gray-500 mt-0.5">Maximum risk score across monitored zones</p>
+                        </div>
+                        <div class="px-2 pb-2" style="flex:1;min-height:0;position:relative">
+                            <canvas id="trendChart" style="position:absolute;inset:8px"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-surface rounded-xl border border-border flex flex-col" style="height:400px">
+                        <div class="p-4 border-b border-border flex justify-between items-center">
+                            <h2 class="text-lg font-semibold flex items-center"><i data-lucide="bar-chart-2" class="w-5 h-5 mr-2 text-purple-400"></i> Demand vs Supply</h2>
+                        </div>
+                        <div class="p-4" style="flex:1;min-height:0;position:relative">
+                            <canvas id="demandSupplyChart" style="position:absolute;inset:16px"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tactical Map Tab -->
+            <div id="tab-map" class="tab-content hidden animate-fade-in" style="height:calc(100vh - 130px)">
+                <div class="flex justify-between items-end mb-4">
+                    <div>
+                        <h1 class="text-3xl font-bold text-white mb-2">Tactical Operations Map</h1>
+                        <p class="text-gray-400">Interactive geographic visualization of incidents and resources.</p>
+                    </div>
+                    <div class="flex space-x-2 bg-surface p-1 rounded-lg border border-border">
+                        <button class="px-3 py-1.5 text-sm bg-gray-800 text-white rounded-md">Incidents</button>
+                        <button class="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors rounded-md">Resources</button>
+                        <button class="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors rounded-md">Weather</button>
+                    </div>
+                </div>
+                <div class="bg-surface border border-border rounded-xl relative overflow-hidden shadow-lg shadow-black/50" style="flex:1;min-height:500px">
+                    <div id="full-map" style="position:absolute;inset:0;z-index:0"></div>
+                    
+                    <!-- Map Overlay Legend -->
+                    <div class="absolute bottom-6 left-6 z-10 bg-surface/90 backdrop-blur-md p-4 rounded-xl border border-border shadow-xl">
+                        <h3 class="text-sm font-semibold text-white mb-3 border-b border-border pb-2">Map Legend</h3>
+                        <div class="space-y-2">
+                            <div class="flex items-center text-sm text-gray-300"><div class="w-3 h-3 rounded-full bg-danger mr-3"></div> Critical Incident</div>
+                            <div class="flex items-center text-sm text-gray-300"><div class="w-3 h-3 rounded-full bg-warning mr-3"></div> Warning / Alert</div>
+                            <div class="flex items-center text-sm text-gray-300"><div class="w-3 h-3 rounded-full bg-primary mr-3"></div> Rescue Team</div>
+                            <div class="flex items-center text-sm text-gray-300"><div class="w-3 h-3 rounded-full bg-success mr-3"></div> Safe Zone</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerts Tab -->
+            <div id="tab-alerts" class="tab-content hidden animate-fade-in">
+                <h1 class="text-3xl font-bold text-white mb-2">Active Alerts</h1>
+                <p class="text-gray-400 mb-6">Real-time emergency notifications and hazard warnings.</p>
+                
+                <div class="grid gap-4" id="alerts-container">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Resources Tab -->
+            <div id="tab-resources" class="tab-content hidden animate-fade-in p-2">
+                <div class="mb-8">
+                    <p class="text-xs font-semibold text-gray-500 tracking-widest uppercase mb-1">Resources</p>
+                    <h1 class="text-3xl font-bold text-white">Storage & Inventory</h1>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- WEST COMMAND DEPOT -->
+                    <div class="bg-[#0f172a] rounded-xl border border-gray-800 p-5 relative" id="depot-card-west">
+                        <button onclick="openEditModal('west', 'WEST COMMAND DEPOT')" class="admin-edit-btn absolute top-5 right-5 text-gray-500 hover:text-primary hidden transition-colors" title="Edit Inventory"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                        <h3 class="text-sm font-bold text-white tracking-wider mb-1">WEST COMMAND DEPOT</h3>
+                        <p class="text-xs text-gray-500 mb-5">19.20, 72.95</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="apple" class="w-3 h-3 mr-1.5"></i> FOOD</div>
+                                <div class="text-xl font-bold text-white">12,000</div>
+                            </div>
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="droplet" class="w-3 h-3 mr-1.5"></i> WATER</div>
+                                <div class="text-xl font-bold text-white">24,000</div>
+                            </div>
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="activity" class="w-3 h-3 mr-1.5"></i> MEDICAL</div>
+                                <div class="text-xl font-bold text-white">1,800</div>
+                            </div>
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="users" class="w-3 h-3 mr-1.5"></i> TEAMS</div>
+                                <div class="text-xl font-bold text-white">14</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SOUTH RELIEF HUB -->
+                    <div class="bg-[#0f172a] rounded-xl border border-gray-800 p-5 relative" id="depot-card-south">
+                        <button onclick="openEditModal('south', 'SOUTH RELIEF HUB')" class="admin-edit-btn absolute top-5 right-5 text-gray-500 hover:text-primary hidden transition-colors" title="Edit Inventory"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                        <h3 class="text-sm font-bold text-white tracking-wider mb-1">SOUTH RELIEF HUB</h3>
+                        <p class="text-xs text-gray-500 mb-5">13.10, 80.30</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="apple" class="w-3 h-3 mr-1.5"></i> FOOD</div>
+                                <div class="text-xl font-bold text-white">9,500</div>
+                            </div>
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="droplet" class="w-3 h-3 mr-1.5"></i> WATER</div>
+                                <div class="text-xl font-bold text-white">18,000</div>
+                            </div>
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="activity" class="w-3 h-3 mr-1.5"></i> MEDICAL</div>
+                                <div class="text-xl font-bold text-white">1,400</div>
+                            </div>
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="users" class="w-3 h-3 mr-1.5"></i> TEAMS</div>
+                                <div class="text-xl font-bold text-white">11</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- EAST LOGISTICS CENTER -->
+                    <div class="bg-[#0f172a] rounded-xl border border-gray-800 p-5 relative" id="depot-card-east">
+                        <button onclick="openEditModal('east', 'EAST LOGISTICS CENTER')" class="admin-edit-btn absolute top-5 right-5 text-gray-500 hover:text-primary hidden transition-colors" title="Edit Inventory"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                        <h3 class="text-sm font-bold text-white tracking-wider mb-1">EAST LOGISTICS CENTER</h3>
+                        <p class="text-xs text-gray-500 mb-5">22.60, 88.40</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="apple" class="w-3 h-3 mr-1.5"></i> FOOD</div>
+                                <div class="text-xl font-bold text-white">10,200</div>
+                            </div>
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="droplet" class="w-3 h-3 mr-1.5"></i> WATER</div>
+                                <div class="text-xl font-bold text-white">21,000</div>
+                            </div>
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="activity" class="w-3 h-3 mr-1.5"></i> MEDICAL</div>
+                                <div class="text-xl font-bold text-white">1,600</div>
+                            </div>
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="users" class="w-3 h-3 mr-1.5"></i> TEAMS</div>
+                                <div class="text-xl font-bold text-white">12</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NORTH STRATEGIC RESERVE -->
+                    <div class="bg-[#0f172a] rounded-xl border border-gray-800 p-5 relative" id="depot-card-north">
+                        <button onclick="openEditModal('north', 'NORTH STRATEGIC RESERVE')" class="admin-edit-btn absolute top-5 right-5 text-gray-500 hover:text-primary hidden transition-colors" title="Edit Inventory"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                        <h3 class="text-sm font-bold text-white tracking-wider mb-1">NORTH STRATEGIC RESERVE</h3>
+                        <p class="text-xs text-gray-500 mb-5">28.60, 77.20</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="apple" class="w-3 h-3 mr-1.5"></i> FOOD</div>
+                                <div class="text-xl font-bold text-white">15,000</div>
+                            </div>
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="droplet" class="w-3 h-3 mr-1.5"></i> WATER</div>
+                                <div class="text-xl font-bold text-white">30,000</div>
+                            </div>
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="activity" class="w-3 h-3 mr-1.5"></i> MEDICAL</div>
+                                <div class="text-xl font-bold text-white">2,200</div>
+                            </div>
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="users" class="w-3 h-3 mr-1.5"></i> TEAMS</div>
+                                <div class="text-xl font-bold text-white">18</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CENTRAL MOBILIZATION UNIT -->
+                    <div class="bg-[#0f172a] rounded-xl border border-gray-800 p-5 relative" id="depot-card-central">
+                        <button onclick="openEditModal('central', 'CENTRAL MOBILIZATION UNIT')" class="admin-edit-btn absolute top-5 right-5 text-gray-500 hover:text-primary hidden transition-colors" title="Edit Inventory"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                        <h3 class="text-sm font-bold text-white tracking-wider mb-1">CENTRAL MOBILIZATION UNIT</h3>
+                        <p class="text-xs text-gray-500 mb-5">17.40, 78.50</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="apple" class="w-3 h-3 mr-1.5"></i> FOOD</div>
+                                <div class="text-xl font-bold text-white">8,800</div>
+                            </div>
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="droplet" class="w-3 h-3 mr-1.5"></i> WATER</div>
+                                <div class="text-xl font-bold text-white">17,000</div>
+                            </div>
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="activity" class="w-3 h-3 mr-1.5"></i> MEDICAL</div>
+                                <div class="text-xl font-bold text-white">1,300</div>
+                            </div>
+                            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50">
+                                <div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="users" class="w-3 h-3 mr-1.5"></i> TEAMS</div>
+                                <div class="text-xl font-bold text-white">10</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI Allocation Tab -->
+            <div id="tab-ai" class="tab-content hidden animate-fade-in p-2">
+                <div class="mb-8">
+                    <div class="flex items-center mb-1">
+                        <i data-lucide="cpu" class="w-5 h-5 text-primary mr-2"></i>
+                        <p class="text-xs font-semibold text-primary tracking-widest uppercase">AI Engine</p>
+                    </div>
+                    <h1 class="text-3xl font-bold text-white mb-2">Resource Allocation</h1>
+                    <p class="text-gray-400 text-sm">Rule-based engine balances disaster severity, population density and distance to resource centers.</p>
+                </div>
+                
+                <div class="space-y-6">
+                    <!-- FLOOD CHENNAI -->
+                    <div class="bg-[#0f172a] rounded-xl border border-gray-800 overflow-hidden">
+                        <div class="p-6 border-b border-gray-800 bg-[#0f172a]">
+                            <div class="flex justify-between items-start mb-2">
+                                <h2 class="text-lg font-bold tracking-widest text-white uppercase">FLOOD <span class="text-gray-600 mx-2">&middot;</span> CHENNAI</h2>
+                                <span class="px-3 py-1 bg-warning/10 border border-warning/30 text-warning text-xs font-bold rounded-full flex items-center"><div class="w-2 h-2 bg-warning rounded-full mr-2"></div> HIGH</span>
+                            </div>
+                            <p class="text-sm text-gray-400">Population 11.0M &middot; Heavy monsoon rainfall causing waterlogging in low-lying neighborhoods.</p>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm whitespace-nowrap">
+                                <thead class="text-xs uppercase text-gray-500 bg-[#0f172a] border-b border-gray-800">
+                                    <tr>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">Center</th>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">Food</th>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">Water</th>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">Medical</th>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">Teams</th>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">Distance</th>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">ETA</th>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">Priority</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-800/50 text-gray-300 bg-[#0f172a]">
+                                    <tr class="hover:bg-gray-800/20 transition-colors">
+                                        <td class="px-6 py-4 font-medium flex items-center text-white"><i data-lucide="arrow-right" class="w-4 h-4 text-primary mr-2"></i> South Relief Hub</td>
+                                        <td class="px-6 py-4">1,513</td><td class="px-6 py-4">3,025</td><td class="px-6 py-4">227</td><td class="px-6 py-4">3</td>
+                                        <td class="px-6 py-4">4 km</td><td class="px-6 py-4">19 min</td><td class="px-6 py-4 text-primary font-bold">25.2</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-800/20 transition-colors">
+                                        <td class="px-6 py-4">Central Mobilization Unit</td>
+                                        <td class="px-6 py-4">825</td><td class="px-6 py-4">1,650</td><td class="px-6 py-4">124</td><td class="px-6 py-4">2</td>
+                                        <td class="px-6 py-4">516 km</td><td class="px-6 py-4">531 min</td><td class="px-6 py-4 text-primary font-bold">13.9</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-800/20 transition-colors">
+                                        <td class="px-6 py-4">West Command Depot</td>
+                                        <td class="px-6 py-4">413</td><td class="px-6 py-4">825</td><td class="px-6 py-4">62</td><td class="px-6 py-4">1</td>
+                                        <td class="px-6 py-4">1036 km</td><td class="px-6 py-4">1051 min</td><td class="px-6 py-4 text-primary font-bold">13.8</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- CYCLONE KOLKATA -->
+                    <div class="bg-[#0f172a] rounded-xl border border-gray-800 overflow-hidden">
+                        <div class="p-6 border-b border-gray-800 bg-[#0f172a]">
+                            <div class="flex justify-between items-start mb-2">
+                                <h2 class="text-lg font-bold tracking-widest text-white uppercase">CYCLONE <span class="text-gray-600 mx-2">&middot;</span> KOLKATA</h2>
+                                <span class="px-3 py-1 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 text-xs font-bold rounded-full flex items-center"><div class="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div> MEDIUM</span>
+                            </div>
+                            <p class="text-sm text-gray-400">Population 14.8M &middot; Tropical depression intensifying over the Bay of Bengal.</p>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm whitespace-nowrap">
+                                <thead class="text-xs uppercase text-gray-500 bg-[#0f172a] border-b border-gray-800">
+                                    <tr>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">Center</th>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">Food</th>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">Water</th>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">Medical</th>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">Teams</th>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">Distance</th>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">ETA</th>
+                                        <th class="px-6 py-4 font-semibold tracking-wider">Priority</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-800/50 text-gray-300 bg-[#0f172a]">
+                                    <tr class="hover:bg-gray-800/20 transition-colors">
+                                        <td class="px-6 py-4 font-medium flex items-center text-white"><i data-lucide="arrow-right" class="w-4 h-4 text-primary mr-2"></i> East Logistics Center</td>
+                                        <td class="px-6 py-4">1,221</td><td class="px-6 py-4">2,442</td><td class="px-6 py-4">183</td><td class="px-6 py-4">2</td>
+                                        <td class="px-6 py-4">5 km</td><td class="px-6 py-4">20 min</td><td class="px-6 py-4 text-primary font-bold">24.6</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-800/20 transition-colors">
+                                        <td class="px-6 py-4">Central Mobilization Unit</td>
+                                        <td class="px-6 py-4">666</td><td class="px-6 py-4">1,332</td><td class="px-6 py-4">100</td><td class="px-6 py-4">1</td>
+                                        <td class="px-6 py-4">1180 km</td><td class="px-6 py-4">1195 min</td><td class="px-6 py-4 text-primary font-bold">18.6</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-800/20 transition-colors">
+                                        <td class="px-6 py-4">North Strategic Reserve</td>
+                                        <td class="px-6 py-4">333</td><td class="px-6 py-4">666</td><td class="px-6 py-4">50</td><td class="px-6 py-4">1</td>
+                                        <td class="px-6 py-4">1304 km</td><td class="px-6 py-4">1319 min</td><td class="px-6 py-4 text-primary font-bold">18.5</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Weather Tab -->
+            <div id="tab-weather" class="tab-content hidden animate-fade-in">
+                <!-- Header -->
+                <div class="flex items-start justify-between mb-5">
+                    <div>
+                        <p class="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-1">WEATHER INTEL</p>
+                        <h1 class="text-3xl font-bold text-white">Atmospheric Telemetry</h1>
+                    </div>
+                    <div class="flex items-center bg-[#0d1b2a] border border-[#1e2d3d] rounded-lg px-3 py-2 gap-2 w-52">
+                        <i data-lucide="search" class="w-4 h-4 text-gray-500 flex-shrink-0"></i>
+                        <input id="city-search" type="text" placeholder="Search a city..." oninput="filterCityTabs(this.value)"
+                            class="bg-transparent text-sm text-gray-300 placeholder-gray-600 focus:outline-none w-full">
+                    </div>
+                </div>
+
+                <!-- City Filter Tabs -->
+                <div class="flex flex-wrap gap-2 mb-6" id="city-tabs">
+                    <!-- Populated by JS -->
+                </div>
+
+                <!-- Stat Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6" id="weather-stat-cards">
+                    <div class="bg-[#0d1b2a] border border-[#1e2d3d] rounded-xl p-4">
+                        <p class="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-3">TEMP °C</p>
+                        <div class="text-3xl font-bold text-primary" id="wstat-temp">—</div>
+                    </div>
+                    <div class="bg-[#0d1b2a] border border-[#1e2d3d] rounded-xl p-4">
+                        <p class="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-3">HUMIDITY</p>
+                        <div class="text-3xl font-bold text-primary" id="wstat-humidity">—</div>
+                    </div>
+                    <div class="bg-[#0d1b2a] border border-[#1e2d3d] rounded-xl p-4">
+                        <p class="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-3">WIND KPH</p>
+                        <div class="text-3xl font-bold text-primary" id="wstat-wind">—</div>
+                    </div>
+                    <div class="bg-[#0d1b2a] border border-[#1e2d3d] rounded-xl p-4">
+                        <p class="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-3">RAINFALL MM</p>
+                        <div class="text-3xl font-bold text-primary" id="wstat-rain">—</div>
+                    </div>
+                    <div class="bg-[#0d1b2a] border border-[#1e2d3d] rounded-xl p-4">
+                        <p class="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-3">RISK SCORE</p>
+                        <div class="text-3xl font-bold text-primary" id="wstat-risk">—</div>
+                        <p class="text-xs text-gray-500 mt-1" id="wstat-risk-label">—</p>
+                    </div>
+                </div>
+
+                <!-- Historical Telemetry Chart -->
+                <div class="bg-[#0d1b2a] border border-[#1e2d3d] rounded-xl flex flex-col" style="height:380px">
+                    <div class="px-5 pt-5 pb-2">
+                        <h2 class="text-sm font-bold tracking-widest text-white uppercase">HISTORICAL TELEMETRY</h2>
+                        <p class="text-xs text-gray-500 mt-0.5">Live updates every 60s</p>
+                    </div>
+                    <div class="px-2 pb-2" style="flex:1;min-height:0;position:relative">
+                        <canvas id="weatherChart" style="position:absolute;inset:8px"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Field Reports Tab -->
+            <div id="tab-reports" class="tab-content hidden animate-fade-in">
+                <h1 class="text-3xl font-bold text-white mb-6">Field Reports</h1>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Submit a Report Panel -->
+                    <div class="bg-[#0d1b2a] border border-[#1e2d3d] rounded-xl p-6" id="report-form-container">
+                        <h2 class="text-xs font-bold tracking-widest text-white uppercase mb-5">SUBMIT A REPORT</h2>
+                        <form id="field-report-form" onsubmit="submitReport(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-[10px] font-semibold tracking-widest text-gray-400 uppercase mb-1.5">LOCATION</label>
+                                <select id="report-location" class="w-full bg-[#0a1520] border border-[#1e2d3d] rounded-md px-3 py-2.5 text-white text-sm focus:outline-none focus:border-primary appearance-none cursor-pointer" required>
+                                    <option value="">Select location...</option>
+                                    <option value="Chennai" selected>Chennai</option>
+                                    <option value="Mumbai">Mumbai</option>
+                                    <option value="Delhi">Delhi</option>
+                                    <option value="Kolkata">Kolkata</option>
+                                    <option value="Bangalore">Bangalore</option>
+                                    <option value="Hyderabad">Hyderabad</option>
+                                    <option value="Ahmedabad">Ahmedabad</option>
+                                    <option value="Pune">Pune</option>
+                                    <option value="Jaipur">Jaipur</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-semibold tracking-widest text-gray-400 uppercase mb-1.5">URGENCY</label>
+                                <div class="flex gap-2" id="urgency-group">
+                                    <button type="button" onclick="setUrgency('low', this)" class="urgency-btn flex-1 py-1.5 text-xs font-semibold rounded border border-[#1e2d3d] text-gray-400 bg-transparent hover:border-primary/50 transition-colors" data-urgency="low">Low</button>
+                                    <button type="button" onclick="setUrgency('medium', this)" class="urgency-btn flex-1 py-1.5 text-xs font-semibold rounded border border-primary text-primary bg-primary/10 transition-colors" data-urgency="medium">Medium</button>
+                                    <button type="button" onclick="setUrgency('high', this)" class="urgency-btn flex-1 py-1.5 text-xs font-semibold rounded border border-[#1e2d3d] text-gray-400 bg-transparent hover:border-warning/50 transition-colors" data-urgency="high">High</button>
+                                    <button type="button" onclick="setUrgency('critical', this)" class="urgency-btn flex-1 py-1.5 text-xs font-semibold rounded border border-[#1e2d3d] text-gray-400 bg-transparent hover:border-danger/50 transition-colors" data-urgency="critical">Critical</button>
+                                </div>
+                                <input type="hidden" id="report-urgency" value="medium">
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-semibold tracking-widest text-gray-400 uppercase mb-1.5">DESCRIPTION</label>
+                                <textarea id="report-description" rows="4" class="w-full bg-[#0a1520] border border-[#1e2d3d] rounded-md px-3 py-2.5 text-white text-sm focus:outline-none focus:border-primary resize-y" required placeholder="Describe what you're seeing on the ground..."></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-semibold tracking-widest text-gray-400 uppercase mb-1.5">IMAGE URL (OPTIONAL)</label>
+                                <div class="flex items-center bg-[#0a1520] border border-[#1e2d3d] rounded-md px-3 py-2.5 focus-within:border-primary transition-colors">
+                                    <i data-lucide="image" class="w-4 h-4 text-gray-500 mr-2 flex-shrink-0"></i>
+                                    <input type="url" id="report-image-url" class="flex-1 bg-transparent text-white text-sm focus:outline-none placeholder-gray-600" placeholder="https://...">
+                                </div>
+                            </div>
+
+                            <button type="submit" id="send-report-btn" class="flex items-center px-5 py-2.5 bg-primary hover:bg-primary/90 text-white text-sm font-semibold rounded-lg transition-all shadow-[0_0_15px_rgba(14,165,233,0.3)] hover:shadow-[0_0_20px_rgba(14,165,233,0.5)]">
+                                <i data-lucide="send" class="w-4 h-4 mr-2"></i> Send report
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Recent Reports Panel -->
+                    <div class="bg-[#0d1b2a] border border-[#1e2d3d] rounded-xl p-6">
+                        <div class="flex justify-between items-center mb-1">
+                            <h2 class="text-xs font-bold tracking-widest text-white uppercase">RECENT REPORTS</h2>
+                            <span id="reports-count" class="text-xs text-gray-500">0 submitted</span>
+                        </div>
+                        <div id="reports-list" class="space-y-3 mt-4">
+                            <div id="no-reports-msg" class="flex items-center justify-center h-40 text-sm text-gray-600">No reports yet.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Precautions Tab -->
+            <div id="tab-precautions" class="tab-content hidden animate-fade-in">
+                <h1 class="text-3xl font-bold text-white mb-2">Standard Operating Procedures</h1>
+                <p class="text-gray-400 mb-6">Action plans and precautions for different disaster types.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-surface p-6 rounded-xl border border-border">
+                        <h3 class="text-xl font-bold text-danger mb-4 flex items-center"><i data-lucide="waves" class="w-6 h-6 mr-2"></i> Flood / Tsunami</h3>
+                        <ul class="list-disc pl-5 space-y-2 text-gray-300">
+                            <li>Evacuate immediately to higher ground designated as safe zones.</li>
+                            <li>Do not walk or drive through flood waters (6 inches of moving water can knock you down).</li>
+                            <li>Turn off utilities at the main switches or valves if instructed.</li>
+                            <li>Disconnect electrical appliances and do not touch electrical equipment if you are wet.</li>
+                            <li>Listen to emergency broadcasts and follow instructions strictly.</li>
+                            <li>Keep emergency kits ready and easily accessible.</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="bg-surface p-6 rounded-xl border border-border">
+                        <h3 class="text-xl font-bold text-warning mb-4 flex items-center"><i data-lucide="wind" class="w-6 h-6 mr-2"></i> Cyclone / Hurricane</h3>
+                        <ul class="list-disc pl-5 space-y-2 text-gray-300">
+                            <li>Secure windows and doors; board them up if possible.</li>
+                            <li>Stay indoors in a windowless room or hallway on the lowest floor.</li>
+                            <li>Prepare for power outages by having flashlights and batteries ready.</li>
+                            <li>Store adequate drinking water and non-perishable food.</li>
+                            <li>Do not go out during the eye of the storm.</li>
+                            <li>Secure loose objects outside that could become projectiles.</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="bg-surface p-6 rounded-xl border border-border">
+                        <h3 class="text-xl font-bold text-orange-500 mb-4 flex items-center"><i data-lucide="activity" class="w-6 h-6 mr-2"></i> Earthquake</h3>
+                        <ul class="list-disc pl-5 space-y-2 text-gray-300">
+                            <li>Drop, Cover, and Hold On. Stay away from glass, windows, outside doors.</li>
+                            <li>If indoors, stay there. Do not run outside while the ground is shaking.</li>
+                            <li>If outdoors, move away from buildings, streetlights, and utility wires.</li>
+                            <li>If in a vehicle, stop as quickly as safety permits and stay in the vehicle.</li>
+                            <li>Be prepared for aftershocks and check for structural damage.</li>
+                            <li>Avoid using elevators during or after the quake.</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="bg-surface p-6 rounded-xl border border-border">
+                        <h3 class="text-xl font-bold text-red-600 mb-4 flex items-center"><i data-lucide="flame" class="w-6 h-6 mr-2"></i> Wildfire</h3>
+                        <ul class="list-disc pl-5 space-y-2 text-gray-300">
+                            <li>Evacuate immediately if ordered by authorities.</li>
+                            <li>Keep indoor air clean by closing all windows and doors.</li>
+                            <li>Wear protective clothing (long sleeves, pants, heavy shoes) if going outside.</li>
+                            <li>Have an emergency supply kit packed in your vehicle.</li>
+                            <li>Back your car into the driveway or park in an open space facing the direction of escape.</li>
+                            <li>Turn on lights outside to make the house more visible in heavy smoke.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="/static/js/app.js?v=2"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
