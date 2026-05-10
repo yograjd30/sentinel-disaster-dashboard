@@ -120,37 +120,6 @@
                     <button type="button" onclick="showRegisterPanel()" class="text-xs text-gray-400 hover:text-primary transition-colors">New to SENTINEL? <span class="text-primary font-medium">Create account</span></button>
                     <a href="mailto:sentinel@disaster.gov" class="text-xs text-gray-500 hover:text-primary transition-colors flex items-center gap-1"><i data-lucide="mail" class="w-3 h-3"></i> Contact Us</a>
                 </div>
-
-                <!-- Emergency SOS Section -->
-                <div class="mt-6 p-4 rounded-xl border border-danger/40 bg-danger/5 relative overflow-hidden">
-                    <div class="absolute inset-0 bg-gradient-to-br from-danger/10 to-transparent pointer-events-none"></div>
-                    <div class="relative z-10">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="relative flex h-2.5 w-2.5">
-                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75"></span>
-                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-danger"></span>
-                            </span>
-                            <h3 class="text-sm font-bold text-danger uppercase tracking-wider">Emergency SOS</h3>
-                        </div>
-                        <p class="text-xs text-gray-400 mb-3">In immediate danger? Contact our 24/7 emergency operations centre:</p>
-                        <div class="flex flex-col sm:flex-row gap-2">
-                            <a href="tel:+911800SENTINEL" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-danger/10 border border-danger/30 text-danger text-xs font-semibold hover:bg-danger/20 transition-colors">
-                                <i data-lucide="phone-call" class="w-3.5 h-3.5 flex-shrink-0"></i>
-                                <span>+91 1800-SEN-TINEL</span>
-                            </a>
-                            <a href="mailto:sos@sentinel-ops.gov.in" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/30 text-warning text-xs font-semibold hover:bg-warning/20 transition-colors">
-                                <i data-lucide="mail" class="w-3.5 h-3.5 flex-shrink-0"></i>
-                                <span>sos@sentinel-ops.gov.in</span>
-                            </a>
-                        </div>
-                        <div class="mt-3 pt-3 border-t border-danger/20">
-                            <button type="button" onclick="openMissingPersonModal()" class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-orange-500/10 border border-orange-500/40 text-orange-400 text-xs font-bold hover:bg-orange-500/20 transition-all tracking-wide">
-                                <i data-lucide="user-search" class="w-4 h-4"></i>
-                                Report a Missing Person
-                            </button>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -250,6 +219,30 @@
             <button id="add-resource-location-btn" onclick="openAddResourceModal()" class="hidden w-full flex items-center px-3 py-2.5 rounded-md text-sm font-medium text-success hover:text-white hover:bg-gray-800 transition-colors mb-1">
                 <i data-lucide="map-pin-plus" class="w-5 h-5 mr-3"></i> Add Resource Location
             </button>
+
+            <!-- Emergency SOS (citizen only, shown via JS) -->
+            <div id="sidebar-sos-section" class="hidden mt-2 p-3 rounded-xl border border-danger/40 bg-danger/5 relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-br from-danger/10 to-transparent pointer-events-none"></div>
+                <div class="relative z-10">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-danger"></span>
+                        </span>
+                        <h3 class="text-[11px] font-bold text-danger uppercase tracking-wider">Emergency SOS</h3>
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <a href="tel:+911800SENTINEL" class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-danger/10 border border-danger/30 text-danger text-[11px] font-semibold hover:bg-danger/20 transition-colors">
+                            <i data-lucide="phone-call" class="w-3 h-3 flex-shrink-0"></i>
+                            <span>+91 1800-SEN-TINEL</span>
+                        </a>
+                        <a href="mailto:sos@sentinel-ops.gov.in" class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-warning/10 border border-warning/30 text-warning text-[11px] font-semibold hover:bg-warning/20 transition-colors">
+                            <i data-lucide="mail" class="w-3 h-3 flex-shrink-0"></i>
+                            <span>sos@sentinel-ops.gov.in</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </aside>
 

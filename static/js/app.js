@@ -151,6 +151,10 @@ function setupProfile() {
         btn.classList.toggle('hidden', role !== 'admin');
     });
 
+    // ── Citizen: Emergency SOS in sidebar ──
+    const sosSection = document.getElementById('sidebar-sos-section');
+    if (sosSection) sosSection.classList.toggle('hidden', role !== 'citizen');
+
     // ── Nav visibility per role ──
     // citizen: hide command, resources, ai
     // rescue:  hide command, resources, ai
