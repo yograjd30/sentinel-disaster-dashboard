@@ -116,9 +116,43 @@
                     </button>
                 </form>
                 
-                <div class="mt-6 text-center">
-                    <a href="#" class="text-xs text-gray-400 hover:text-primary transition-colors">New to SENTINEL? <span class="text-primary font-medium">Create account</span></a>
+                <div class="mt-5 flex flex-col items-center gap-2">
+                    <button type="button" onclick="showRegisterPanel()" class="text-xs text-gray-400 hover:text-primary transition-colors">New to SENTINEL? <span class="text-primary font-medium">Create account</span></button>
+                    <a href="mailto:sentinel@disaster.gov" class="text-xs text-gray-500 hover:text-primary transition-colors flex items-center gap-1"><i data-lucide="mail" class="w-3 h-3"></i> Contact Us</a>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Account Modal -->
+    <div id="register-modal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div class="bg-[#0f172a] border border-gray-700 rounded-2xl shadow-2xl w-full max-w-md p-8 relative">
+            <button onclick="hideRegisterPanel()" class="absolute top-4 right-4 text-gray-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <h2 class="text-2xl font-bold text-white mb-1">Create Account</h2>
+            <p class="text-gray-400 text-sm mb-6">Register for SENTINEL access.</p>
+            <div id="register-error" class="hidden mb-4 p-3 bg-danger/10 border border-danger/30 rounded-lg text-danger text-sm"></div>
+            <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Username</label>
+                    <input type="text" id="reg-username" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors" required placeholder="yourname">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Password</label>
+                    <input type="password" id="reg-password" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors" required placeholder="••••••••">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Role</label>
+                    <select id="reg-role" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors">
+                        <option value="citizen">Public User</option>
+                        <option value="rescue">Rescue Team</option>
+                    </select>
+                </div>
+                <button type="submit" id="reg-submit-btn" class="w-full bg-primary hover:bg-primary/90 text-gray-900 font-bold text-sm py-3.5 rounded-lg transition-colors mt-2 shadow-[0_0_20px_rgba(14,165,233,0.3)]">
+                    Create Account
+                </button>
+            </form>
+            <div class="mt-4 text-center">
+                <button onclick="hideRegisterPanel()" class="text-xs text-gray-500 hover:text-primary transition-colors">Already have an account? Sign in</button>
             </div>
         </div>
     </div>
@@ -179,10 +213,11 @@
             </ul>
         </nav>
         
-        <div class="p-4 border-t border-border mt-auto">
-            <a href="#" id="admin-settings-btn" class="flex items-center px-3 py-2.5 rounded-md text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
-                <i data-lucide="settings" class="w-5 h-5 mr-3"></i> Admin Settings
-            </a>
+        <div class="p-4 border-t border-border mt-auto" id="sidebar-bottom-btns">
+            <!-- Add Resource Location (admin only, shown via JS) -->
+            <button id="add-resource-location-btn" onclick="openAddResourceModal()" class="hidden w-full flex items-center px-3 py-2.5 rounded-md text-sm font-medium text-success hover:text-white hover:bg-gray-800 transition-colors mb-1">
+                <i data-lucide="map-pin-plus" class="w-5 h-5 mr-3"></i> Add Resource Location
+            </button>
         </div>
     </aside>
 
@@ -366,9 +401,9 @@
                         <p class="text-gray-400">Interactive geographic visualization of incidents and resources.</p>
                     </div>
                     <div class="flex space-x-2 bg-surface p-1 rounded-lg border border-border">
-                        <button class="px-3 py-1.5 text-sm bg-gray-800 text-white rounded-md">Incidents</button>
-                        <button class="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors rounded-md">Resources</button>
-                        <button class="px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors rounded-md">Weather</button>
+                        <button id="map-filter-incidents" onclick="setMapFilter('incidents')" class="map-filter-btn px-3 py-1.5 text-sm bg-gray-800 text-white rounded-md transition-colors">Incidents</button>
+                        <button id="map-filter-resources" onclick="setMapFilter('resources')" class="map-filter-btn px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors rounded-md">Resources</button>
+                        <button id="map-filter-weather" onclick="setMapFilter('weather')" class="map-filter-btn px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors rounded-md">Weather</button>
                     </div>
                 </div>
                 <div class="bg-surface border border-border rounded-xl relative overflow-hidden shadow-lg shadow-black/50" style="flex:1;min-height:500px">
@@ -391,7 +426,6 @@
             <div id="tab-alerts" class="tab-content hidden animate-fade-in">
                 <h1 class="text-3xl font-bold text-white mb-2">Active Alerts</h1>
                 <p class="text-gray-400 mb-6">Real-time emergency notifications and hazard warnings.</p>
-                
                 <div class="grid gap-4" id="alerts-container">
                     <!-- Populated by JS -->
                 </div>
@@ -695,8 +729,8 @@
             <div id="tab-reports" class="tab-content hidden animate-fade-in">
                 <h1 class="text-3xl font-bold text-white mb-6">Field Reports</h1>
                 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Submit a Report Panel -->
+                <div id="reports-layout" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Submit a Report Panel (hidden for citizen/rescue via JS) -->
                     <div class="bg-[#0d1b2a] border border-[#1e2d3d] rounded-xl p-6" id="report-form-container">
                         <h2 class="text-xs font-bold tracking-widest text-white uppercase mb-5">SUBMIT A REPORT</h2>
                         <form id="field-report-form" onsubmit="submitReport(event)" class="space-y-4">
@@ -748,7 +782,7 @@
                     </div>
 
                     <!-- Recent Reports Panel -->
-                    <div class="bg-[#0d1b2a] border border-[#1e2d3d] rounded-xl p-6">
+                    <div class="bg-[#0d1b2a] border border-[#1e2d3d] rounded-xl p-6" id="reports-panel">
                         <div class="flex justify-between items-center mb-1">
                             <h2 class="text-xs font-bold tracking-widest text-white uppercase">RECENT REPORTS</h2>
                             <span id="reports-count" class="text-xs text-gray-500">0 submitted</span>
@@ -927,7 +961,54 @@
         </div>
     </main>
 
-    <script src="/static/js/app.js?v=2"></script>
+    <!-- Add Resource Location Modal (Admin only) -->
+    <div id="add-resource-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div class="bg-[#0f172a] border border-gray-700 rounded-2xl shadow-2xl w-full max-w-lg p-8 relative">
+            <button onclick="closeAddResourceModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <h2 class="text-2xl font-bold text-white mb-1">Add Resource Location</h2>
+            <p class="text-gray-400 text-sm mb-6">Register a new depot or resource center on the tactical map.</p>
+            <div id="add-resource-error" class="hidden mb-4 p-3 bg-danger/10 border border-danger/30 rounded-lg text-danger text-sm"></div>
+            <form id="add-resource-form" onsubmit="handleAddResource(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Location Name</label>
+                    <input type="text" id="new-resource-name" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors" required placeholder="e.g. SOUTH EAST RELIEF HUB">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Latitude</label>
+                        <input type="number" step="any" id="new-resource-lat" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors" required placeholder="e.g. 19.07">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Longitude</label>
+                        <input type="number" step="any" id="new-resource-lng" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors" required placeholder="e.g. 72.87">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Food Units</label>
+                        <input type="number" id="new-resource-food" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors" required placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Water Units</label>
+                        <input type="number" id="new-resource-water" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors" required placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Medical Kits</label>
+                        <input type="number" id="new-resource-medical" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors" required placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Teams</label>
+                        <input type="number" id="new-resource-teams" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors" required placeholder="0">
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-success hover:bg-success/90 text-white font-bold text-sm py-3.5 rounded-lg transition-colors mt-2 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                    <i data-lucide="map-pin-plus" class="w-4 h-4 inline-block mr-2"></i> Add Location
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js?v=3"></script>
     <script>
         lucide.createIcons();
     </script>

@@ -21,6 +21,49 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
+// ── Register Modal ──
+function showRegisterPanel() {
+    document.getElementById('register-modal').classList.remove('hidden');
+    document.getElementById('register-modal').classList.add('flex');
+    lucide.createIcons();
+}
+function hideRegisterPanel() {
+    document.getElementById('register-modal').classList.add('hidden');
+    document.getElementById('register-modal').classList.remove('flex');
+    document.getElementById('register-error').classList.add('hidden');
+    document.getElementById('register-form').reset();
+}
+async function handleRegister(e) {
+    e.preventDefault();
+    const username = document.getElementById('reg-username').value.trim();
+    const password = document.getElementById('reg-password').value.trim();
+    const role     = document.getElementById('reg-role').value;
+    const errEl    = document.getElementById('register-error');
+    const btn      = document.getElementById('reg-submit-btn');
+    btn.disabled = true; btn.textContent = 'Creating...';
+    try {
+        const res  = await fetch('/api/register', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username, password, role})
+        });
+        const data = await res.json();
+        if (data.success) {
+            hideRegisterPanel();
+            // Auto-fill login form with new credentials
+            document.getElementById('login-username').value = username;
+            document.getElementById('login-password').value = password;
+            alert('Account created! You can now sign in.');
+        } else {
+            errEl.textContent = data.message || 'Registration failed.';
+            errEl.classList.remove('hidden');
+        }
+    } catch(err) {
+        errEl.textContent = 'Connection error. Please try again.';
+        errEl.classList.remove('hidden');
+    }
+    btn.disabled = false; btn.textContent = 'Create Account';
+}
+
 // Login & Auth
 function selectRole(role) {
     document.querySelectorAll('.role-btn').forEach(btn => {
@@ -90,47 +133,69 @@ function setupProfile() {
     
     const icon = document.getElementById('user-profile-icon');
     if (currentUser.role === 'admin') {
-        icon.style.width = '1.5rem';
-        icon.style.height = '1.5rem';
+        icon.style.width = '1.5rem'; icon.style.height = '1.5rem';
         document.getElementById('user-initials').classList.replace('text-xs', 'text-[10px]');
     } else {
-        icon.style.width = '2.5rem';
-        icon.style.height = '2.5rem';
+        icon.style.width = '2.5rem'; icon.style.height = '2.5rem';
         document.getElementById('user-initials').classList.replace('text-[10px]', 'text-sm');
     }
 
-    // Role restrictions — show/hide admin-only UI elements
-    const addResourceBtn = document.getElementById('add-resource-btn');
-    if (addResourceBtn) addResourceBtn.style.display = currentUser.role === 'citizen' ? 'none' : 'flex';
+    const role = currentUser.role;
 
-    const adminSettingsBtn = document.getElementById('admin-settings-btn');
-    if (adminSettingsBtn) adminSettingsBtn.style.display = currentUser.role === 'admin' ? 'flex' : 'none';
+    // ── Admin: Add Resource Location button in sidebar ──
+    const addLocBtn = document.getElementById('add-resource-location-btn');
+    if (addLocBtn) addLocBtn.style.display = role === 'admin' ? 'flex' : 'none';
 
+    // ── Admin edit buttons on depot cards ──
     document.querySelectorAll('.admin-edit-btn').forEach(btn => {
-        if (currentUser.role === 'admin') {
-            btn.classList.remove('hidden');
+        btn.classList.toggle('hidden', role !== 'admin');
+    });
+
+    // ── Nav visibility per role ──
+    // citizen: hide command, resources, ai
+    // rescue:  hide command, resources, ai
+    // admin:   show all
+    const navItems = {
+        command:    ['admin'],
+        weather:    ['admin', 'rescue', 'citizen'],
+        alerts:     ['admin', 'rescue', 'citizen'],
+        map:        ['admin', 'rescue', 'citizen'],
+        resources:  ['admin'],
+        ai:         ['admin'],
+        reports:    ['admin', 'rescue', 'citizen'],
+        precautions:['admin', 'rescue', 'citizen']
+    };
+    Object.entries(navItems).forEach(([nav, roles]) => {
+        const el = document.getElementById('nav-item-' + nav);
+        if (el) el.style.display = roles.includes(role) ? 'block' : 'none';
+    });
+
+    // ── Field Reports: hide submission form for citizen & rescue ──
+    const formContainer = document.getElementById('report-form-container');
+    const reportsLayout = document.getElementById('reports-layout');
+    if (formContainer && reportsLayout) {
+        if (role === 'citizen' || role === 'rescue') {
+            formContainer.style.display = 'none';
+            reportsLayout.classList.remove('lg:grid-cols-2');
+            reportsLayout.classList.add('lg:grid-cols-1');
         } else {
-            btn.classList.add('hidden');
+            formContainer.style.display = '';
+            reportsLayout.classList.add('lg:grid-cols-2');
+            reportsLayout.classList.remove('lg:grid-cols-1');
         }
-    });
+    }
 
-    // All roles see all nav tabs
-    const allNavs = ['command', 'weather', 'alerts', 'map', 'resources', 'ai', 'reports', 'precautions'];
-    allNavs.forEach(nav => {
-        const navEl = document.getElementById('nav-item-' + nav);
-        if (navEl) navEl.style.display = 'block';
-    });
-
-    // Show role-specific precaution sections
-    const rescueSection = document.getElementById('precautions-rescue');
+    // ── Precautions: show role-specific section ──
+    const rescueSection  = document.getElementById('precautions-rescue');
     const citizenSection = document.getElementById('precautions-citizen');
-    const adminSection = document.getElementById('precautions-admin');
-    if (rescueSection) rescueSection.style.display = currentUser.role === 'rescue' ? 'block' : 'none';
-    if (citizenSection) citizenSection.style.display = currentUser.role === 'citizen' ? 'block' : 'none';
-    if (adminSection) adminSection.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+    const adminSection   = document.getElementById('precautions-admin');
+    if (rescueSection)  rescueSection.style.display  = role === 'rescue'  ? 'block' : 'none';
+    if (citizenSection) citizenSection.style.display = role === 'citizen' ? 'block' : 'none';
+    if (adminSection)   adminSection.style.display   = role === 'admin'   ? 'block' : 'none';
 
-    // Everyone lands on Command Center
-    switchTab('command');
+    // ── Default landing tab per role ──
+    if (role === 'admin') switchTab('command');
+    else switchTab('alerts');
 }
 
 // Notifications
@@ -397,14 +462,69 @@ async function saveResourceEdit(e) {
 function renderAlerts(alerts) {
     const container = document.getElementById('alerts-container');
     container.innerHTML = '';
+    const role = currentUser?.role || 'citizen';
+
+    // Precautions map for AI auto-dispatch simulation
+    const precautionMap = {
+        high: [
+            'Evacuate all residents in low-lying areas immediately.',
+            'Deploy NDRF rescue teams to identified critical zones.',
+            'Open emergency shelters and ensure water & medical supplies.',
+            'Issue continuous public broadcasts every 15 minutes.',
+            'Disable electrical supply in flooded zones.'
+        ],
+        medium: [
+            'Issue advisory for affected regions, request voluntary evacuation.',
+            'Put rescue teams on standby alert.',
+            'Stock emergency shelters with 48-hour supplies.',
+            'Monitor water/wind levels and update alerts every 30 min.'
+        ],
+        low: [
+            'Monitor situation closely, no immediate action required.',
+            'Inform local authorities and community leaders.',
+            'Ensure communication lines remain operational.'
+        ]
+    };
+
     alerts.forEach(alert => {
         let colorClass = alert.severity === 'high' ? 'bg-danger/20 border-danger/50 text-danger' : 
                          alert.severity === 'medium' ? 'bg-warning/20 border-warning/50 text-warning' : 'bg-primary/20 border-primary/50 text-primary';
         let icon = alert.severity === 'high' ? 'alert-octagon' : 'alert-triangle';
-        
+        const precs = precautionMap[alert.severity] || precautionMap.low;
+
+        // Build role-specific action buttons
+        let actionsHtml = '';
+        if (role === 'admin') {
+            // AI auto-dispatch simulation
+            const team = alert.severity === 'high' ? 'NDRF Alpha + Medical Unit' : 'Rescue Team Beta';
+            actionsHtml = `
+                <div class="mt-4 p-3 rounded-lg bg-gray-900 border border-gray-700">
+                    <p class="text-xs font-semibold text-primary mb-2 flex items-center"><i data-lucide="cpu" class="w-3 h-3 mr-1"></i> AI RECOMMENDATION</p>
+                    <p class="text-xs text-gray-300 mb-2">Auto-dispatch: <span class="text-white font-semibold">${team}</span> to ${alert.location}</p>
+                    <div class="flex gap-2 mt-2">
+                        <button onclick="aiAcknowledge(this, '${alert.id}')" class="px-3 py-1.5 bg-success/20 hover:bg-success/30 border border-success/40 text-success text-xs rounded-lg font-semibold transition-colors flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> AI Acknowledge</button>
+                        <button onclick="aiDispatch(this, '${alert.id}', '${alert.location}', '${team}')" class="px-3 py-1.5 bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary text-xs rounded-lg font-semibold transition-colors flex items-center gap-1"><i data-lucide="send" class="w-3 h-3"></i> AI Dispatch</button>
+                    </div>
+                </div>`;
+        } else if (role === 'rescue') {
+            // Rescue: show precautions only
+            actionsHtml = `
+                <div class="mt-4 p-3 rounded-lg bg-gray-900 border border-gray-700">
+                    <p class="text-xs font-semibold text-warning mb-2 flex items-center"><i data-lucide="shield-check" class="w-3 h-3 mr-1"></i> FIELD PRECAUTIONS</p>
+                    <ul class="text-xs text-gray-300 space-y-1 list-disc pl-4">${precs.map(p => `<li>${p}</li>`).join('')}</ul>
+                </div>`;
+        } else {
+            // Citizen: precautions only
+            actionsHtml = `
+                <div class="mt-4 p-3 rounded-lg bg-gray-900 border border-gray-700">
+                    <p class="text-xs font-semibold text-primary mb-2 flex items-center"><i data-lucide="info" class="w-3 h-3 mr-1"></i> SAFETY ADVICE</p>
+                    <ul class="text-xs text-gray-300 space-y-1 list-disc pl-4">${precs.map(p => `<li>${p}</li>`).join('')}</ul>
+                </div>`;
+        }
+
         container.innerHTML += `
             <div class="bg-surface p-5 rounded-xl border border-border shadow-sm flex items-start">
-                <div class="p-3 ${colorClass} rounded-lg mr-4">
+                <div class="p-3 ${colorClass} rounded-lg mr-4 flex-shrink-0">
                     <i data-lucide="${icon}" class="w-6 h-6"></i>
                 </div>
                 <div class="flex-1">
@@ -416,15 +536,31 @@ function renderAlerts(alerts) {
                         <i data-lucide="map-pin" class="w-4 h-4 mr-1"></i> ${alert.location}
                     </div>
                     <p class="text-sm text-gray-300">${alert.description}</p>
-                    <div class="mt-3 flex space-x-2">
-                        <button class="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-white text-xs rounded transition-colors border border-gray-700">Acknowledge</button>
-                        <button class="px-3 py-1 bg-primary hover:bg-primary/90 text-white text-xs rounded transition-colors">Dispatch Team</button>
-                    </div>
+                    ${actionsHtml}
                 </div>
             </div>
         `;
     });
     lucide.createIcons();
+}
+
+// AI Alert Actions
+function aiAcknowledge(btn, alertId) {
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="check" class="w-3 h-3"></i> Acknowledged';
+    btn.classList.replace('bg-success/20','bg-success/40');
+    addNotification(`Alert #${alertId} acknowledged by AI system`, 'success');
+    lucide.createIcons();
+}
+function aiDispatch(btn, alertId, location, team) {
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader" class="w-3 h-3"></i> Dispatching...';
+    setTimeout(() => {
+        btn.innerHTML = '<i data-lucide="check" class="w-3 h-3"></i> Dispatched';
+        btn.classList.replace('bg-primary/20','bg-primary/40');
+        addNotification(`AI dispatched ${team} → ${location}`, 'info');
+        lucide.createIcons();
+    }, 1200);
 }
 
 function renderResources(resources) {
@@ -929,5 +1065,150 @@ function renderAIChart() {
             }
         }
     });
+}
+
+// ── Tactical Map Filters ──
+let _currentMapFilter = 'incidents';
+let _depotMapMarkers = [];
+
+function setMapFilter(filter) {
+    _currentMapFilter = filter;
+    // Update button styles
+    document.querySelectorAll('.map-filter-btn').forEach(btn => {
+        const isActive = btn.id === 'map-filter-' + filter;
+        btn.className = 'map-filter-btn px-3 py-1.5 text-sm rounded-md transition-colors ' +
+            (isActive ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-white');
+    });
+
+    // Clear depot markers
+    if (fullMap) _depotMapMarkers.forEach(m => fullMap.removeLayer(m));
+    _depotMapMarkers = [];
+
+    if (filter === 'incidents') {
+        // Re-render incident markers (already on map, just make sure visible)
+        if (fullMap) fullMapMarkers.forEach(m => fullMap.addTo ? null : null); // markers already added
+        fetch('/api/incidents').then(r => r.json()).then(renderIncidentsOnMap);
+    } else if (filter === 'resources') {
+        // Clear incident markers temporarily and show depot locations
+        if (fullMap) fullMapMarkers.forEach(m => fullMap.removeLayer(m));
+        fetch('/api/depots').then(r => r.json()).then(depots => {
+            depots.forEach(d => {
+                const [lat, lng] = d.location_coords.split(',').map(Number);
+                if (!isNaN(lat) && !isNaN(lng) && fullMap) {
+                    const icon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background:#10b981;width:16px;height:16px;border-radius:50%;border:2px solid white;box-shadow:0 0 10px #10b981;display:flex;align-items:center;justify-content:center;"></div>`,
+                        iconSize: [16, 16], iconAnchor: [8, 8]
+                    });
+                    const marker = L.marker([lat, lng], {icon})
+                        .bindPopup(`<div class="text-sm"><b>${d.name}</b><br>Food: ${d.food} | Water: ${d.water}<br>Medical: ${d.medical} | Teams: ${d.teams}</div>`)
+                        .addTo(fullMap);
+                    _depotMapMarkers.push(marker);
+                }
+            });
+        });
+    } else if (filter === 'weather') {
+        // Clear incident markers and show weather region markers
+        if (fullMap) fullMapMarkers.forEach(m => fullMap.removeLayer(m));
+        const weatherCoords = {
+            'Mumbai': [19.076, 72.877], 'Delhi': [28.613, 77.209],
+            'Chennai': [13.082, 80.270], 'Kolkata': [22.572, 88.363],
+            'Bengaluru': [12.971, 77.594], 'Hyderabad': [17.385, 78.486]
+        };
+        fetch('/api/weather').then(r => r.json()).then(weatherData => {
+            weatherData.forEach(w => {
+                const coords = weatherCoords[w.region];
+                if (!coords || !fullMap) return;
+                const condLow = w.condition.toLowerCase();
+                const color = condLow.includes('storm') ? '#ef4444' : condLow.includes('rain') ? '#f59e0b' : '#10b981';
+                const icon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style="background:${color};width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 8px ${color};"></div>`,
+                    iconSize: [14, 14], iconAnchor: [7, 7]
+                });
+                const marker = L.marker(coords, {icon})
+                    .bindPopup(`<div class="text-sm"><b>${w.region}</b><br>${w.condition} | ${w.temperature}<br>Wind: ${w.wind_speed} | Rain: ${w.precipitation}</div>`)
+                    .addTo(fullMap);
+                _depotMapMarkers.push(marker);
+            });
+        });
+    }
+}
+
+// ── Add Resource Location Modal ──
+function openAddResourceModal() {
+    if (currentUser?.role !== 'admin') return;
+    document.getElementById('add-resource-modal').classList.remove('hidden');
+    document.getElementById('add-resource-modal').classList.add('flex');
+    document.getElementById('add-resource-error').classList.add('hidden');
+    document.getElementById('add-resource-form').reset();
+    lucide.createIcons();
+}
+function closeAddResourceModal() {
+    document.getElementById('add-resource-modal').classList.add('hidden');
+    document.getElementById('add-resource-modal').classList.remove('flex');
+}
+async function handleAddResource(e) {
+    e.preventDefault();
+    if (currentUser?.role !== 'admin') return;
+    const name    = document.getElementById('new-resource-name').value.trim();
+    const lat     = parseFloat(document.getElementById('new-resource-lat').value);
+    const lng     = parseFloat(document.getElementById('new-resource-lng').value);
+    const food    = parseInt(document.getElementById('new-resource-food').value) || 0;
+    const water   = parseInt(document.getElementById('new-resource-water').value) || 0;
+    const medical = parseInt(document.getElementById('new-resource-medical').value) || 0;
+    const teams   = parseInt(document.getElementById('new-resource-teams').value) || 0;
+    const errEl   = document.getElementById('add-resource-error');
+
+    try {
+        const res  = await fetch('/api/depots', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, lat, lng, food, water, medical, teams})
+        });
+        const data = await res.json();
+        if (data.success) {
+            closeAddResourceModal();
+            addNotification(`New resource location "${name}" added.`, 'success');
+            // Add depot card dynamically
+            appendDepotCard(data);
+            // Place marker on map
+            if (fullMap) {
+                const icon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style="background:#10b981;width:16px;height:16px;border-radius:50%;border:2px solid white;box-shadow:0 0 10px #10b981;"></div>`,
+                    iconSize: [16, 16], iconAnchor: [8, 8]
+                });
+                L.marker([lat, lng], {icon})
+                    .bindPopup(`<b>${name}</b><br>Food: ${food} | Water: ${water}<br>Medical: ${medical} | Teams: ${teams}`)
+                    .addTo(fullMap);
+            }
+        } else {
+            errEl.textContent = data.message || 'Failed to add location.';
+            errEl.classList.remove('hidden');
+        }
+    } catch(err) {
+        errEl.textContent = 'Connection error.';
+        errEl.classList.remove('hidden');
+    }
+}
+
+function appendDepotCard(depot) {
+    const grid = document.querySelector('#tab-resources .grid');
+    if (!grid) return;
+    const card = document.createElement('div');
+    card.className = 'bg-[#0f172a] rounded-xl border border-gray-800 p-5 relative';
+    card.id = 'depot-card-' + depot.id;
+    card.innerHTML = `
+        <button onclick="openEditModal('${depot.id}', '${depot.name}')" class="admin-edit-btn absolute top-5 right-5 text-gray-500 hover:text-primary transition-colors" title="Edit Inventory"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+        <h3 class="text-sm font-bold text-white tracking-wider mb-1">${depot.name}</h3>
+        <p class="text-xs text-gray-500 mb-5">${depot.location_coords}</p>
+        <div class="grid grid-cols-2 gap-3">
+            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50"><div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="apple" class="w-3 h-3 mr-1.5"></i> FOOD</div><div class="text-xl font-bold text-white">${Number(depot.food).toLocaleString()}</div></div>
+            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50"><div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="droplet" class="w-3 h-3 mr-1.5"></i> WATER</div><div class="text-xl font-bold text-white">${Number(depot.water).toLocaleString()}</div></div>
+            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50"><div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="activity" class="w-3 h-3 mr-1.5"></i> MEDICAL</div><div class="text-xl font-bold text-white">${Number(depot.medical).toLocaleString()}</div></div>
+            <div class="bg-[#162032] p-3 rounded-lg border border-gray-800/50"><div class="flex items-center text-gray-400 text-xs mb-1"><i data-lucide="users" class="w-3 h-3 mr-1.5"></i> TEAMS</div><div class="text-xl font-bold text-white">${Number(depot.teams).toLocaleString()}</div></div>
+        </div>`;
+    grid.appendChild(card);
+    lucide.createIcons();
 }
 

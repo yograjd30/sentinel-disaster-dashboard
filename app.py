@@ -183,6 +183,23 @@ def login():
         return jsonify({'success': True, 'role': user.role, 'username': user.username, 'id': user.id})
     return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
 
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.json
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+    role     = data.get('role', 'citizen')
+    if not username or not password:
+        return jsonify({'success': False, 'message': 'Username and password are required'}), 400
+    if User.query.filter_by(username=username).first():
+        return jsonify({'success': False, 'message': 'Username already exists'}), 409
+    if role not in ('admin', 'rescue', 'citizen'):
+        role = 'citizen'
+    new_user = User(username=username, password=password, role=role)
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({'success': True, 'role': new_user.role, 'username': new_user.username, 'id': new_user.id})
+
 @app.route('/api/reports', methods=['GET', 'POST'])
 def handle_reports():
     if request.method == 'POST':
@@ -233,8 +250,36 @@ def get_demand_supply():
         'supply': [70, 60, 80, 55, 65]
     })
 
-@app.route('/api/depots', methods=['GET'])
+@app.route('/api/depots', methods=['GET', 'POST'])
 def get_depots():
+    if request.method == 'POST':
+        data = request.json
+        name = data.get('name', '').strip()
+        lat  = data.get('lat')
+        lng  = data.get('lng')
+        if not name or lat is None or lng is None:
+            return jsonify({'success': False, 'message': 'Name, lat, and lng are required'}), 400
+        depot_id = name.lower().replace(' ', '_')[:20]
+        # Ensure unique id
+        base_id = depot_id
+        counter = 1
+        while Depot.query.get(depot_id):
+            depot_id = f"{base_id}_{counter}"
+            counter += 1
+        new_depot = Depot(
+            id=depot_id, name=name,
+            location_coords=f"{lat}, {lng}",
+            food=int(data.get('food', 0)),
+            water=int(data.get('water', 0)),
+            medical=int(data.get('medical', 0)),
+            teams=int(data.get('teams', 0))
+        )
+        db.session.add(new_depot)
+        db.session.commit()
+        return jsonify({'success': True, 'id': new_depot.id, 'name': new_depot.name,
+                        'location_coords': new_depot.location_coords,
+                        'food': new_depot.food, 'water': new_depot.water,
+                        'medical': new_depot.medical, 'teams': new_depot.teams})
     depots = Depot.query.all()
     return jsonify([{
         'id': d.id, 'name': d.name, 'location_coords': d.location_coords,
