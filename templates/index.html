@@ -169,7 +169,7 @@
             <ul class="space-y-1 px-3">
                 <li id="nav-item-command"><a href="#" onclick="switchTab('command')" class="nav-link active flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 hover:text-primary"><i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i> Command Center</a></li>
                 <li id="nav-item-weather"><a href="#" onclick="switchTab('weather')" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="cloud-lightning" class="w-5 h-5 mr-3"></i> Weather Intel</a></li>
-                <li id="nav-item-alerts"><a href="#" onclick="switchTab('alerts')" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="bell-ring" class="w-5 h-5 mr-3"></i> Active Alerts <span id="alert-badge" class="ml-auto bg-danger text-white text-xs px-2 py-0.5 rounded-full">3</span></a></li>
+                <li id="nav-item-alerts"><a href="#" onclick="switchTab('alerts')" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="bell-ring" class="w-5 h-5 mr-3"></i> Active Alerts <span id="alert-badge" class="ml-auto bg-danger text-white text-xs px-2 py-0.5 rounded-full">2</span></a></li>
                 <li id="nav-item-map"><a href="#" onclick="switchTab('map')" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="map" class="w-5 h-5 mr-3"></i> Tactical Map</a></li>
                 <li id="nav-item-resources"><a href="#" onclick="switchTab('resources')" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="package" class="w-5 h-5 mr-3"></i> Resources</a></li>
                 <li id="nav-item-ai"><a href="#" onclick="switchTab('ai')" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="cpu" class="w-5 h-5 mr-3"></i> AI Allocation</a></li>
@@ -733,56 +733,164 @@
 
             <!-- Precautions Tab -->
             <div id="tab-precautions" class="tab-content hidden animate-fade-in">
-                <h1 class="text-3xl font-bold text-white mb-2">Standard Operating Procedures</h1>
-                <p class="text-gray-400 mb-6">Action plans and precautions for different disaster types.</p>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-surface p-6 rounded-xl border border-border">
-                        <h3 class="text-xl font-bold text-danger mb-4 flex items-center"><i data-lucide="waves" class="w-6 h-6 mr-2"></i> Flood / Tsunami</h3>
-                        <ul class="list-disc pl-5 space-y-2 text-gray-300">
-                            <li>Evacuate immediately to higher ground designated as safe zones.</li>
-                            <li>Do not walk or drive through flood waters (6 inches of moving water can knock you down).</li>
-                            <li>Turn off utilities at the main switches or valves if instructed.</li>
-                            <li>Disconnect electrical appliances and do not touch electrical equipment if you are wet.</li>
-                            <li>Listen to emergency broadcasts and follow instructions strictly.</li>
-                            <li>Keep emergency kits ready and easily accessible.</li>
-                        </ul>
+                <div class="mb-6">
+                    <p class="text-xs font-semibold text-gray-500 tracking-widest uppercase mb-1">Safety Protocols</p>
+                    <h1 class="text-3xl font-bold text-white">Precautions &amp; SOPs</h1>
+                </div>
+
+                <!-- ADMIN: Full SOPs -->
+                <div id="precautions-admin">
+                    <p class="text-gray-400 mb-6">Full Standard Operating Procedures for all disaster scenarios. Distribute and enforce across all teams.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-surface p-6 rounded-xl border border-border">
+                            <h3 class="text-xl font-bold text-danger mb-4 flex items-center"><i data-lucide="waves" class="w-6 h-6 mr-2"></i> Flood / Tsunami SOP</h3>
+                            <ul class="list-disc pl-5 space-y-2 text-gray-300 text-sm">
+                                <li>Issue Level-1 evacuation orders within the first 30 minutes of a flood alert.</li>
+                                <li>Deploy NDRF teams to low-lying zones; coordinate with local district authorities.</li>
+                                <li>Activate all coastal relief hubs and pre-position boats and life jackets.</li>
+                                <li>Broadcast alerts via SENTINEL and all media channels every 15 minutes.</li>
+                                <li>Open designated safe zones with minimum 72-hr food and water supplies.</li>
+                                <li>Track water levels from IoT sensors and update tactical map in real time.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-surface p-6 rounded-xl border border-border">
+                            <h3 class="text-xl font-bold text-warning mb-4 flex items-center"><i data-lucide="wind" class="w-6 h-6 mr-2"></i> Cyclone / Hurricane SOP</h3>
+                            <ul class="list-disc pl-5 space-y-2 text-gray-300 text-sm">
+                                <li>Raise NDMA Cyclone Watch at 72 hrs and Warning at 48 hrs before landfall.</li>
+                                <li>Coordinate pre-emptive evacuation of coastal districts — target 100% compliance.</li>
+                                <li>Ensure all depots have 7-day supply buffers before cyclone landfall window.</li>
+                                <li>Suspend rescue ops during peak wind speed; resume within 2 hrs of eye passage.</li>
+                                <li>Post-landfall: deploy rapid damage assessment teams within 4 hrs.</li>
+                                <li>Maintain satellite comms backup if terrestrial infrastructure is disrupted.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-surface p-6 rounded-xl border border-border">
+                            <h3 class="text-xl font-bold text-orange-500 mb-4 flex items-center"><i data-lucide="activity" class="w-6 h-6 mr-2"></i> Earthquake SOP</h3>
+                            <ul class="list-disc pl-5 space-y-2 text-gray-300 text-sm">
+                                <li>Activate Urban Search &amp; Rescue (USAR) teams within 1 hr of M5.0+ event.</li>
+                                <li>Establish incident command at nearest safe structure; set 500m exclusion zone.</li>
+                                <li>Deploy K9 and thermal imaging teams for trapped-persons detection.</li>
+                                <li>Triage casualties using START method; fast-track critical to field hospitals.</li>
+                                <li>Assess structural integrity before re-entry clearance — require engineer sign-off.</li>
+                                <li>Monitor aftershock data; suspend ops if M4.0+ aftershock detected.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-surface p-6 rounded-xl border border-border">
+                            <h3 class="text-xl font-bold text-red-600 mb-4 flex items-center"><i data-lucide="flame" class="w-6 h-6 mr-2"></i> Wildfire SOP</h3>
+                            <ul class="list-disc pl-5 space-y-2 text-gray-300 text-sm">
+                                <li>Initiate aerial reconnaissance to map fire perimeter every 2 hrs.</li>
+                                <li>Coordinate with Forest Dept for controlled burns to create firebreaks.</li>
+                                <li>Pre-position tanker trucks and firefighting aircraft at nearest air base.</li>
+                                <li>Evacuate all villages within 5 km of active fire front immediately.</li>
+                                <li>Deploy air quality monitoring — issue health advisories for PM2.5 &gt;150 µg/m³.</li>
+                                <li>Activate mutual aid agreements with neighboring state fire services.</li>
+                            </ul>
+                        </div>
                     </div>
-                    
-                    <div class="bg-surface p-6 rounded-xl border border-border">
-                        <h3 class="text-xl font-bold text-warning mb-4 flex items-center"><i data-lucide="wind" class="w-6 h-6 mr-2"></i> Cyclone / Hurricane</h3>
-                        <ul class="list-disc pl-5 space-y-2 text-gray-300">
-                            <li>Secure windows and doors; board them up if possible.</li>
-                            <li>Stay indoors in a windowless room or hallway on the lowest floor.</li>
-                            <li>Prepare for power outages by having flashlights and batteries ready.</li>
-                            <li>Store adequate drinking water and non-perishable food.</li>
-                            <li>Do not go out during the eye of the storm.</li>
-                            <li>Secure loose objects outside that could become projectiles.</li>
-                        </ul>
+                </div>
+
+                <!-- RESCUE TEAM: Field Protocols -->
+                <div id="precautions-rescue" style="display:none">
+                    <p class="text-gray-400 mb-6">Field safety protocols for rescue personnel. Follow these at all active incident zones.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-[#0f1f10] p-6 rounded-xl border border-success/30">
+                            <h3 class="text-xl font-bold text-success mb-4 flex items-center"><i data-lucide="shield-check" class="w-6 h-6 mr-2"></i> Personal Protective Equipment</h3>
+                            <ul class="list-disc pl-5 space-y-2 text-gray-300 text-sm">
+                                <li>Always wear full PPE before entering any incident zone — helmet, gloves, reflective vest, steel-toed boots.</li>
+                                <li>Flood ops: wear life jacket rated for your body weight at all times near water.</li>
+                                <li>Fire proximity: use nomex suit, SCBA when smoke is present.</li>
+                                <li>Debris fields: use N95 minimum; powered air-purifying respirator for confined spaces.</li>
+                                <li>Check PPE integrity before every shift — report damaged equipment immediately.</li>
+                                <li>Buddy system mandatory — never enter structure alone.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-[#1f1510] p-6 rounded-xl border border-warning/30">
+                            <h3 class="text-xl font-bold text-warning mb-4 flex items-center"><i data-lucide="radio" class="w-6 h-6 mr-2"></i> Communication Protocol</h3>
+                            <ul class="list-disc pl-5 space-y-2 text-gray-300 text-sm">
+                                <li>Check in with Incident Commander every 30 minutes during active ops.</li>
+                                <li>Use radio channel designated by IC — do not switch channels without authorization.</li>
+                                <li>MAYDAY procedure: state MAYDAY 3×, unit ID, location, nature of emergency, number of persons.</li>
+                                <li>File a Field Report on SENTINEL immediately after any new hazard discovery.</li>
+                                <li>Keep radio charged; carry backup satellite phone on extended deployments.</li>
+                                <li>Do not use non-explosion-proof devices in areas with gas leak risk.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-[#0d1525] p-6 rounded-xl border border-primary/30">
+                            <h3 class="text-xl font-bold text-primary mb-4 flex items-center"><i data-lucide="heart-pulse" class="w-6 h-6 mr-2"></i> Casualty Triage (START Method)</h3>
+                            <ul class="list-disc pl-5 space-y-2 text-gray-300 text-sm">
+                                <li><span class="text-danger font-semibold">Immediate (Red):</span> Breathing only after airway repositioning, or &gt;30 breaths/min, no radial pulse.</li>
+                                <li><span class="text-warning font-semibold">Delayed (Yellow):</span> Breathing, pulse present, not following commands.</li>
+                                <li><span class="text-success font-semibold">Minor (Green):</span> Walking wounded — direct to collection point.</li>
+                                <li><span class="text-gray-500 font-semibold">Expectant (Black):</span> No breathing after airway maneuver — do not expend resources.</li>
+                                <li>Re-triage all casualties every 15 min during active rescue phase.</li>
+                                <li>Document all casualties — name, tag color, time, injuries — in Field Report.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-[#1a0f1a] p-6 rounded-xl border border-purple-500/30">
+                            <h3 class="text-xl font-bold text-purple-400 mb-4 flex items-center"><i data-lucide="triangle-alert" class="w-6 h-6 mr-2"></i> Hazard Awareness</h3>
+                            <ul class="list-disc pl-5 space-y-2 text-gray-300 text-sm">
+                                <li>Identify and mark all secondary hazards: gas leaks, live wires, structural instability.</li>
+                                <li>Flood water may carry sewage, chemicals, and live electrical current — test before entry.</li>
+                                <li>Beware of "dead zones" in collapsed buildings — use listening devices before entering voids.</li>
+                                <li>Do not operate heavy equipment within 10m of a confirmed void with live casualties.</li>
+                                <li>After-dark ops: mandatory lighting, reduced team size, increase check-in frequency to 15 min.</li>
+                                <li>Debrief within 24 hrs of critical incidents — mental health support is mandatory, not optional.</li>
+                            </ul>
+                        </div>
                     </div>
-                    
-                    <div class="bg-surface p-6 rounded-xl border border-border">
-                        <h3 class="text-xl font-bold text-orange-500 mb-4 flex items-center"><i data-lucide="activity" class="w-6 h-6 mr-2"></i> Earthquake</h3>
-                        <ul class="list-disc pl-5 space-y-2 text-gray-300">
-                            <li>Drop, Cover, and Hold On. Stay away from glass, windows, outside doors.</li>
-                            <li>If indoors, stay there. Do not run outside while the ground is shaking.</li>
-                            <li>If outdoors, move away from buildings, streetlights, and utility wires.</li>
-                            <li>If in a vehicle, stop as quickly as safety permits and stay in the vehicle.</li>
-                            <li>Be prepared for aftershocks and check for structural damage.</li>
-                            <li>Avoid using elevators during or after the quake.</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="bg-surface p-6 rounded-xl border border-border">
-                        <h3 class="text-xl font-bold text-red-600 mb-4 flex items-center"><i data-lucide="flame" class="w-6 h-6 mr-2"></i> Wildfire</h3>
-                        <ul class="list-disc pl-5 space-y-2 text-gray-300">
-                            <li>Evacuate immediately if ordered by authorities.</li>
-                            <li>Keep indoor air clean by closing all windows and doors.</li>
-                            <li>Wear protective clothing (long sleeves, pants, heavy shoes) if going outside.</li>
-                            <li>Have an emergency supply kit packed in your vehicle.</li>
-                            <li>Back your car into the driveway or park in an open space facing the direction of escape.</li>
-                            <li>Turn on lights outside to make the house more visible in heavy smoke.</li>
-                        </ul>
+                </div>
+
+                <!-- CITIZEN: Survival Guide -->
+                <div id="precautions-citizen" style="display:none">
+                    <p class="text-gray-400 mb-6">Your personal safety guide. Read and share these with your family before a disaster strikes.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-[#0d1525] p-6 rounded-xl border border-primary/30">
+                            <h3 class="text-xl font-bold text-primary mb-4 flex items-center"><i data-lucide="bag-check" class="w-6 h-6 mr-2"></i> Go-Bag Essentials</h3>
+                            <p class="text-xs text-gray-500 mb-3">Prepare a bag you can grab in 60 seconds.</p>
+                            <ul class="list-disc pl-5 space-y-2 text-gray-300 text-sm">
+                                <li>Water — 3 litres per person per day, minimum 3-day supply.</li>
+                                <li>Non-perishable food: energy bars, canned goods, dry snacks (3-day supply).</li>
+                                <li>Battery-powered or hand-crank radio for emergency broadcasts.</li>
+                                <li>First aid kit with any personal medications (7-day supply).</li>
+                                <li>Torch + extra batteries, whistle, dust masks.</li>
+                                <li>Copies of ID, Aadhaar, insurance documents in a waterproof bag.</li>
+                                <li>Warm blanket, change of clothes, sturdy closed-toe shoes.</li>
+                                <li>Emergency contact list written on paper (not just on your phone).</li>
+                            </ul>
+                        </div>
+                        <div class="bg-[#0f1f10] p-6 rounded-xl border border-success/30">
+                            <h3 class="text-xl font-bold text-success mb-4 flex items-center"><i data-lucide="map-pin" class="w-6 h-6 mr-2"></i> Family Emergency Plan</h3>
+                            <ul class="list-disc pl-5 space-y-2 text-gray-300 text-sm">
+                                <li>Agree on two meeting points: one near home, one outside your neighbourhood.</li>
+                                <li>Identify your nearest safe zone and two evacuation routes from home.</li>
+                                <li>Designate an out-of-area contact everyone will call if local lines fail.</li>
+                                <li>Text messages often go through when voice calls cannot — set this expectation.</li>
+                                <li>Practice your plan at least once a year — include children and elderly members.</li>
+                                <li>Know your neighbours — help each other during an emergency.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-[#1a0f0a] p-6 rounded-xl border border-danger/30">
+                            <h3 class="text-xl font-bold text-danger mb-4 flex items-center"><i data-lucide="waves" class="w-6 h-6 mr-2"></i> During a Flood</h3>
+                            <ul class="list-disc pl-5 space-y-2 text-gray-300 text-sm">
+                                <li>Move to upper floors immediately — do not wait for official orders if water is rising.</li>
+                                <li>Never walk or drive through flood water — 15 cm can knock you off your feet.</li>
+                                <li>Turn off electricity at the main breaker before water enters your home.</li>
+                                <li>Do not touch electrical switches if you are wet or standing in water.</li>
+                                <li>Signal for help from the highest point of your building using bright cloth or torch.</li>
+                                <li>After the flood: do not return home until authorities declare it safe.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-[#1f1510] p-6 rounded-xl border border-warning/30">
+                            <h3 class="text-xl font-bold text-warning mb-4 flex items-center"><i data-lucide="wind" class="w-6 h-6 mr-2"></i> During a Cyclone</h3>
+                            <ul class="list-disc pl-5 space-y-2 text-gray-300 text-sm">
+                                <li>Go to a permanent, pucca structure — never shelter in a kutcha house or temporary shed.</li>
+                                <li>Stay in the strongest room (usually ground floor, away from windows).</li>
+                                <li>Do not go outside when winds appear to stop — this may be the eye of the storm.</li>
+                                <li>Unplug all appliances; store valuables in waterproof bags on the highest shelf.</li>
+                                <li>Keep your charged phone for emergency calls — avoid unnecessary calls to save battery.</li>
+                                <li>After the cyclone: check for gas leaks, downed power lines — report via SENTINEL.</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>

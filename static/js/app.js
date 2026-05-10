@@ -89,10 +89,10 @@ function setupProfile() {
         document.getElementById('user-initials').classList.replace('text-[10px]', 'text-sm');
     }
 
-    // Role restrictions
+    // Role restrictions — show/hide admin-only UI elements
     const addResourceBtn = document.getElementById('add-resource-btn');
     if (addResourceBtn) addResourceBtn.style.display = currentUser.role === 'citizen' ? 'none' : 'flex';
-    
+
     const adminSettingsBtn = document.getElementById('admin-settings-btn');
     if (adminSettingsBtn) adminSettingsBtn.style.display = currentUser.role === 'admin' ? 'flex' : 'none';
 
@@ -104,23 +104,23 @@ function setupProfile() {
         }
     });
 
+    // All roles see all nav tabs
     const allNavs = ['command', 'weather', 'alerts', 'map', 'resources', 'ai', 'reports', 'precautions'];
     allNavs.forEach(nav => {
         const navEl = document.getElementById('nav-item-' + nav);
-        if (navEl) {
-            if (currentUser.role === 'admin' || nav === 'reports') {
-                navEl.style.display = 'block';
-            } else {
-                navEl.style.display = 'none';
-            }
-        }
+        if (navEl) navEl.style.display = 'block';
     });
 
-    if (currentUser.role === 'admin') {
-        switchTab('command');
-    } else {
-        switchTab('reports');
-    }
+    // Show role-specific precaution sections
+    const rescueSection = document.getElementById('precautions-rescue');
+    const citizenSection = document.getElementById('precautions-citizen');
+    const adminSection = document.getElementById('precautions-admin');
+    if (rescueSection) rescueSection.style.display = currentUser.role === 'rescue' ? 'block' : 'none';
+    if (citizenSection) citizenSection.style.display = currentUser.role === 'citizen' ? 'block' : 'none';
+    if (adminSection) adminSection.style.display = currentUser.role === 'admin' ? 'block' : 'none';
+
+    // Everyone lands on Command Center
+    switchTab('command');
 }
 
 // Notifications
