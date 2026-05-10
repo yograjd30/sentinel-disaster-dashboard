@@ -163,7 +163,8 @@ function setupProfile() {
         resources:  ['admin'],
         ai:         ['admin'],
         reports:    ['admin', 'rescue', 'citizen'],
-        precautions:['admin', 'rescue', 'citizen']
+        precautions:['admin', 'rescue', 'citizen'],
+        missing:    ['admin', 'rescue', 'citizen']
     };
     Object.entries(navItems).forEach(([nav, roles]) => {
         const el = document.getElementById('nav-item-' + nav);
@@ -342,6 +343,7 @@ async function fetchData() {
         renderDepots(depots);
         
         fetchReports();
+        fetchMissingPersons();
         renderTrendChart();
         renderDemandSupplyChart();
         renderWeatherChart();
@@ -1210,5 +1212,271 @@ function appendDepotCard(depot) {
         </div>`;
     grid.appendChild(card);
     lucide.createIcons();
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── Missing Person Report Feature ──
+// ══════════════════════════════════════════════════════════════
+
+function openMissingPersonModal() {
+    const modal = document.getElementById('missing-person-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.getElementById('missing-form-success').classList.add('hidden');
+    document.getElementById('missing-form-error').classList.add('hidden');
+    document.getElementById('missing-person-form').classList.remove('hidden');
+    document.getElementById('mp-submit-btn').classList.remove('hidden');
+    lucide.createIcons();
+}
+
+function closeMissingPersonModal() {
+    const modal = document.getElementById('missing-person-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.getElementById('missing-person-form').reset();
+    // Reset photo preview
+    document.getElementById('photo-preview').classList.add('hidden');
+    document.getElementById('photo-preview').src = '';
+    document.getElementById('photo-placeholder').classList.remove('hidden');
+}
+
+function previewMissingPhoto(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+        alert('Photo must be under 5 MB.');
+        event.target.value = '';
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const preview = document.getElementById('photo-preview');
+        preview.src = e.target.result;
+        preview.classList.remove('hidden');
+        document.getElementById('photo-placeholder').classList.add('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+
+async function submitMissingPersonReport(e) {
+    e.preventDefault();
+    const btn = document.getElementById('mp-submit-btn');
+    const errEl = document.getElementById('missing-form-error');
+    const successEl = document.getElementById('missing-form-success');
+    errEl.classList.add('hidden');
+    successEl.classList.add('hidden');
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Submitting...';
+
+    const formData = new FormData();
+    formData.append('name', document.getElementById('mp-name').value.trim());
+    formData.append('age', document.getElementById('mp-age').value);
+    formData.append('gender', document.getElementById('mp-gender').value);
+    formData.append('last_seen_location', document.getElementById('mp-location').value.trim());
+    formData.append('last_seen_time', document.getElementById('mp-time').value);
+    formData.append('description', document.getElementById('mp-description').value.trim());
+    formData.append('reporter_name', document.getElementById('mp-reporter-name').value.trim());
+    formData.append('reporter_phone', document.getElementById('mp-reporter-phone').value.trim());
+
+    const photoInput = document.getElementById('missing-photo-input');
+    if (photoInput.files.length > 0) {
+        formData.append('photo', photoInput.files[0]);
+    }
+
+    try {
+        const res = await fetch('/api/missing-persons', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+            successEl.classList.remove('hidden');
+            document.getElementById('missing-person-form').classList.add('hidden');
+            btn.classList.add('hidden');
+            addNotification('New missing person report submitted \u2014 rescue teams notified.', 'warning');
+            // Refresh the list if logged in
+            if (currentUser) fetchMissingPersons();
+            // Auto-close after 3s
+            setTimeout(() => closeMissingPersonModal(), 3000);
+        } else {
+            errEl.textContent = data.message || 'Submission failed.';
+            errEl.classList.remove('hidden');
+        }
+    } catch (err) {
+        errEl.textContent = 'Connection error. Please try again.';
+        errEl.classList.remove('hidden');
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Submit Missing Person Report';
+    lucide.createIcons();
+}
+
+async function fetchMissingPersons() {
+    try {
+        const res = await fetch('/api/missing-persons');
+        const persons = await res.json();
+        renderMissingPersons(persons);
+    } catch (err) {
+        console.error('Failed to fetch missing persons:', err);
+    }
+}
+
+function renderMissingPersons(persons) {
+    const container = document.getElementById('missing-persons-list');
+    const noMsg = document.getElementById('no-missing-msg');
+    if (!container) return;
+
+    // Stats
+    const total = persons.length;
+    const missing = persons.filter(p => p.status === 'missing').length;
+    const found = persons.filter(p => p.status === 'found').length;
+    const totalEl = document.getElementById('missing-count-total');
+    const missingEl = document.getElementById('missing-count-missing');
+    const foundEl = document.getElementById('missing-count-found');
+    if (totalEl) totalEl.textContent = total;
+    if (missingEl) missingEl.textContent = missing;
+    if (foundEl) foundEl.textContent = found;
+
+    // Badge in nav
+    const badge = document.getElementById('missing-badge');
+    if (badge) {
+        if (missing > 0) {
+            badge.textContent = missing;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    // Clear old cards (keep noMsg)
+    Array.from(container.children).forEach(child => {
+        if (child.id !== 'no-missing-msg') child.remove();
+    });
+
+    if (persons.length === 0) {
+        if (noMsg) noMsg.style.display = 'flex';
+        return;
+    }
+    if (noMsg) noMsg.style.display = 'none';
+
+    const role = currentUser?.role || 'citizen';
+
+    persons.forEach((p, idx) => {
+        // Priority tag based on age
+        let priorityLabel, priorityColor, priorityBg;
+        if (p.age <= 12) {
+            priorityLabel = 'CRITICAL';
+            priorityColor = 'text-danger';
+            priorityBg = 'bg-danger/10 border-danger/30';
+        } else if (p.age <= 18) {
+            priorityLabel = 'HIGH';
+            priorityColor = 'text-orange-400';
+            priorityBg = 'bg-orange-500/10 border-orange-500/30';
+        } else if (p.age <= 40) {
+            priorityLabel = 'MEDIUM';
+            priorityColor = 'text-warning';
+            priorityBg = 'bg-warning/10 border-warning/30';
+        } else {
+            priorityLabel = 'STANDARD';
+            priorityColor = 'text-primary';
+            priorityBg = 'bg-primary/10 border-primary/30';
+        }
+
+        const isFound = p.status === 'found';
+        const cardBorder = isFound ? 'border-success/30' : 'border-gray-800';
+        const cardBg = isFound ? 'bg-[#0a1a10]' : 'bg-[#0f172a]';
+
+        // Mark as found button (rescue / admin only)
+        let actionBtnHtml = '';
+        if ((role === 'rescue' || role === 'admin') && !isFound) {
+            actionBtnHtml = `
+                <button onclick="markPersonFound(${p.id}, this)" class="w-full mt-3 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-success/10 border border-success/30 text-success text-xs font-semibold hover:bg-success/20 transition-all">
+                    <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Mark as Found
+                </button>`;
+        }
+        if (isFound) {
+            actionBtnHtml = `
+                <div class="w-full mt-3 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-success/20 border border-success/40 text-success text-xs font-bold">
+                    <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> LOCATED / FOUND
+                </div>`;
+        }
+
+        // Photo or initials fallback
+        let photoHtml;
+        if (p.photo_data) {
+            photoHtml = `<img src="${p.photo_data}" alt="${p.name}" class="w-full h-36 object-cover rounded-lg mb-3">`;
+        } else {
+            const initials = p.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+            photoHtml = `<div class="w-full h-36 rounded-lg mb-3 bg-gray-800 flex items-center justify-center text-3xl font-bold text-gray-600">${initials}</div>`;
+        }
+
+        const card = document.createElement('div');
+        card.className = `${cardBg} rounded-xl border ${cardBorder} p-4 relative transition-all hover:border-orange-500/40`;
+        card.id = 'missing-card-' + p.id;
+        card.innerHTML = `
+            <!-- Priority Badge -->
+            <div class="absolute top-3 right-3 px-2 py-0.5 rounded-full border text-[10px] font-bold tracking-wider ${priorityBg} ${priorityColor}">
+                #${idx + 1} ${priorityLabel}
+            </div>
+
+            ${photoHtml}
+
+            <h3 class="text-lg font-bold text-white mb-0.5">${p.name}</h3>
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400 mb-3">
+                <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i> Age: <span class="text-white font-semibold">${p.age}</span></span>
+                ${p.gender ? `<span class="flex items-center gap-1"><i data-lucide="user" class="w-3 h-3"></i> ${p.gender}</span>` : ''}
+            </div>
+
+            <div class="space-y-1.5 text-xs">
+                <div class="flex items-start gap-2 text-gray-400">
+                    <i data-lucide="map-pin" class="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-orange-400"></i>
+                    <span><span class="text-gray-500 uppercase tracking-wider">Last Seen:</span> <span class="text-white">${p.last_seen_location}</span></span>
+                </div>
+                ${p.last_seen_time ? `
+                <div class="flex items-start gap-2 text-gray-400">
+                    <i data-lucide="clock" class="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-orange-400"></i>
+                    <span class="text-white">${p.last_seen_time}</span>
+                </div>` : ''}
+                ${p.description ? `
+                <div class="flex items-start gap-2 text-gray-400 mt-2">
+                    <i data-lucide="file-text" class="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-gray-500"></i>
+                    <span class="text-gray-300">${p.description}</span>
+                </div>` : ''}
+            </div>
+
+            <div class="mt-3 pt-3 border-t border-gray-800/50 text-[11px] text-gray-500">
+                <span>Reported by <span class="text-gray-300 font-medium">${p.reporter_name}</span></span>
+                ${p.reporter_phone ? ` \u00b7 <a href="tel:${p.reporter_phone}" class="text-primary hover:underline">${p.reporter_phone}</a>` : ''}
+                <span class="block mt-0.5">${p.submitted_at}</span>
+            </div>
+
+            ${actionBtnHtml}
+        `;
+        container.appendChild(card);
+    });
+    lucide.createIcons();
+}
+
+async function markPersonFound(personId, btn) {
+    if (!currentUser || (currentUser.role !== 'rescue' && currentUser.role !== 'admin')) return;
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Updating...';
+    try {
+        const res = await fetch(`/api/missing-persons/${personId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'found' })
+        });
+        const data = await res.json();
+        if (data.success) {
+            addNotification(`Missing person #${personId} has been located!`, 'success');
+            fetchMissingPersons();
+        }
+    } catch (err) {
+        console.error(err);
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Mark as Found';
+        lucide.createIcons();
+    }
 }
 

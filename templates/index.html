@@ -120,6 +120,37 @@
                     <button type="button" onclick="showRegisterPanel()" class="text-xs text-gray-400 hover:text-primary transition-colors">New to SENTINEL? <span class="text-primary font-medium">Create account</span></button>
                     <a href="mailto:sentinel@disaster.gov" class="text-xs text-gray-500 hover:text-primary transition-colors flex items-center gap-1"><i data-lucide="mail" class="w-3 h-3"></i> Contact Us</a>
                 </div>
+
+                <!-- Emergency SOS Section -->
+                <div class="mt-6 p-4 rounded-xl border border-danger/40 bg-danger/5 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-br from-danger/10 to-transparent pointer-events-none"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="relative flex h-2.5 w-2.5">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-danger"></span>
+                            </span>
+                            <h3 class="text-sm font-bold text-danger uppercase tracking-wider">Emergency SOS</h3>
+                        </div>
+                        <p class="text-xs text-gray-400 mb-3">In immediate danger? Contact our 24/7 emergency operations centre:</p>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <a href="tel:+911800SENTINEL" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-danger/10 border border-danger/30 text-danger text-xs font-semibold hover:bg-danger/20 transition-colors">
+                                <i data-lucide="phone-call" class="w-3.5 h-3.5 flex-shrink-0"></i>
+                                <span>+91 1800-SEN-TINEL</span>
+                            </a>
+                            <a href="mailto:sos@sentinel-ops.gov.in" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/30 text-warning text-xs font-semibold hover:bg-warning/20 transition-colors">
+                                <i data-lucide="mail" class="w-3.5 h-3.5 flex-shrink-0"></i>
+                                <span>sos@sentinel-ops.gov.in</span>
+                            </a>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-danger/20">
+                            <button type="button" onclick="openMissingPersonModal()" class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-orange-500/10 border border-orange-500/40 text-orange-400 text-xs font-bold hover:bg-orange-500/20 transition-all tracking-wide">
+                                <i data-lucide="user-search" class="w-4 h-4"></i>
+                                Report a Missing Person
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -210,6 +241,7 @@
                 <li id="nav-item-ai"><a href="#" onclick="switchTab('ai');closeSidebar()" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="cpu" class="w-5 h-5 mr-3"></i> AI Allocation</a></li>
                 <li id="nav-item-reports"><a href="#" onclick="switchTab('reports');closeSidebar()" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="clipboard-list" class="w-5 h-5 mr-3"></i> Field Reports</a></li>
                 <li id="nav-item-precautions"><a href="#" onclick="switchTab('precautions');closeSidebar()" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="shield-check" class="w-5 h-5 mr-3"></i> Precautions</a></li>
+                <li id="nav-item-missing"><a href="#" onclick="switchTab('missing');closeSidebar()" class="nav-link flex items-center px-3 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-gray-800 text-gray-400 hover:text-white"><i data-lucide="user-search" class="w-5 h-5 mr-3"></i> Missing Persons <span id="missing-badge" class="ml-auto bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full hidden">0</span></a></li>
             </ul>
         </nav>
         
@@ -958,8 +990,164 @@
                 </div>
             </div>
 
+            <!-- Missing Persons Tab -->
+            <div id="tab-missing" class="tab-content hidden animate-fade-in">
+                <div class="flex flex-wrap gap-4 items-end justify-between mb-6">
+                    <div>
+                        <p class="text-xs font-semibold text-orange-400 tracking-widest uppercase mb-1">Priority Queue · Age-Sorted</p>
+                        <h1 class="text-3xl font-bold text-white">Missing Persons</h1>
+                        <p class="text-gray-400 text-sm mt-1">Youngest cases are shown first — highest rescue priority. Report submitted by the public.</p>
+                    </div>
+                    <button onclick="openMissingPersonModal()" class="flex items-center gap-2 px-4 py-2.5 bg-orange-500/10 border border-orange-500/40 text-orange-400 text-sm font-bold rounded-lg hover:bg-orange-500/20 transition-all">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Report Missing Person
+                    </button>
+                </div>
+
+                <!-- Stats bar -->
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="bg-surface rounded-xl border border-border p-4 text-center">
+                        <div class="text-2xl font-bold text-orange-400" id="missing-count-total">0</div>
+                        <div class="text-xs text-gray-500 uppercase tracking-wider mt-1">Total Reported</div>
+                    </div>
+                    <div class="bg-surface rounded-xl border border-border p-4 text-center">
+                        <div class="text-2xl font-bold text-danger" id="missing-count-missing">0</div>
+                        <div class="text-xs text-gray-500 uppercase tracking-wider mt-1">Still Missing</div>
+                    </div>
+                    <div class="bg-surface rounded-xl border border-border p-4 text-center">
+                        <div class="text-2xl font-bold text-success" id="missing-count-found">0</div>
+                        <div class="text-xs text-gray-500 uppercase tracking-wider mt-1">Located / Found</div>
+                    </div>
+                </div>
+
+                <div id="missing-persons-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div id="no-missing-msg" class="col-span-full flex flex-col items-center justify-center py-20 text-gray-600">
+                        <i data-lucide="user-search" class="w-12 h-12 mb-3 opacity-30"></i>
+                        <p class="text-sm">No missing person reports yet.</p>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </main>
+
+    <!-- Missing Person Report Modal (public + any logged-in user) -->
+    <div id="missing-person-modal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black/85 backdrop-blur-sm">
+        <div class="bg-[#0f172a] border border-orange-500/30 rounded-2xl shadow-2xl w-full max-w-lg p-8 relative max-h-[90vh] overflow-y-auto"
+             style="box-shadow: 0 0 40px rgba(249,115,22,0.15);">
+            <button onclick="closeMissingPersonModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors z-10">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <!-- Header -->
+            <div class="flex items-center gap-3 mb-1">
+                <div class="p-2 rounded-lg bg-orange-500/20 border border-orange-500/30">
+                    <i data-lucide="user-search" class="w-5 h-5 text-orange-400"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white">Missing Person Report</h2>
+            </div>
+            <p class="text-gray-400 text-sm mb-6 ml-12">This report will be shared with rescue teams immediately. Youngest persons are prioritised.</p>
+
+            <div id="missing-form-success" class="hidden mb-4 p-4 bg-success/10 border border-success/30 rounded-lg">
+                <div class="flex items-center gap-2 text-success font-semibold mb-1"><i data-lucide="check-circle" class="w-4 h-4"></i> Report Submitted Successfully</div>
+                <p class="text-sm text-gray-400">Your report has been sent to rescue teams. We will reach out if you provided your contact number.</p>
+            </div>
+            <div id="missing-form-error" class="hidden mb-4 p-3 bg-danger/10 border border-danger/30 rounded-lg text-danger text-sm"></div>
+
+            <form id="missing-person-form" onsubmit="submitMissingPersonReport(event)" class="space-y-4" enctype="multipart/form-data">
+
+                <!-- Photo Upload -->
+                <div>
+                    <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Photo of Missing Person</label>
+                    <div id="photo-drop-zone" class="relative border-2 border-dashed border-gray-700 rounded-xl p-6 text-center hover:border-orange-500/50 transition-colors cursor-pointer group"
+                         onclick="document.getElementById('missing-photo-input').click()">
+                        <img id="photo-preview" src="" alt="" class="hidden mx-auto mb-2 rounded-lg object-cover" style="max-height:120px;max-width:180px;">
+                        <div id="photo-placeholder" class="flex flex-col items-center gap-2 text-gray-500 group-hover:text-gray-400 transition-colors">
+                            <i data-lucide="camera" class="w-8 h-8"></i>
+                            <span class="text-sm font-medium">Click to upload photo</span>
+                            <span class="text-xs">JPG, PNG or WEBP · Max 5MB</span>
+                        </div>
+                        <input type="file" id="missing-photo-input" name="photo" accept="image/*" class="hidden" onchange="previewMissingPhoto(event)">
+                    </div>
+                </div>
+
+                <!-- Name + Age -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" id="mp-name" name="name" required
+                               class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors text-sm"
+                               placeholder="e.g. Ravi Kumar">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Age <span class="text-danger">*</span></label>
+                        <input type="number" id="mp-age" name="age" min="0" max="120" required
+                               class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors text-sm"
+                               placeholder="e.g. 8">
+                    </div>
+                </div>
+
+                <!-- Gender -->
+                <div>
+                    <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Gender</label>
+                    <select id="mp-gender" name="gender" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors text-sm">
+                        <option value="">Prefer not to say</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <!-- Last Seen Location -->
+                <div>
+                    <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Last Seen Location <span class="text-danger">*</span></label>
+                    <input type="text" id="mp-location" name="last_seen_location" required
+                           class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors text-sm"
+                           placeholder="e.g. Near Railway Bridge, Andheri West, Mumbai">
+                </div>
+
+                <!-- Last Seen Time -->
+                <div>
+                    <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Last Seen Date &amp; Time</label>
+                    <input type="datetime-local" id="mp-time" name="last_seen_time"
+                           class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors text-sm">
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Description / Clothing / Identifying Features</label>
+                    <textarea id="mp-description" name="description" rows="3"
+                              class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors text-sm resize-none"
+                              placeholder="Wearing red shirt, black jeans. Has a mole on left cheek..."></textarea>
+                </div>
+
+                <!-- Reporter Info -->
+                <div class="pt-3 border-t border-gray-800">
+                    <p class="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-3">Your Contact Details</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Your Name <span class="text-danger">*</span></label>
+                            <input type="text" id="mp-reporter-name" name="reporter_name" required
+                                   class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors text-sm"
+                                   placeholder="Your full name">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">Phone Number</label>
+                            <input type="tel" id="mp-reporter-phone" name="reporter_phone"
+                                   class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors text-sm"
+                                   placeholder="+91 98765 43210">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" id="mp-submit-btn"
+                        class="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm py-3.5 rounded-lg transition-colors mt-2"
+                        style="box-shadow: 0 0 20px rgba(249,115,22,0.3);">
+                    <i data-lucide="send" class="w-4 h-4"></i>
+                    Submit Missing Person Report
+                </button>
+            </form>
+        </div>
+    </div>
 
     <!-- Add Resource Location Modal (Admin only) -->
     <div id="add-resource-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm">

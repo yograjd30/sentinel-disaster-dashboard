@@ -1,4 +1,5 @@
 import os
+import base64
 from flask import Flask, jsonify, request, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
@@ -76,6 +77,20 @@ class Depot(db.Model):
     water = db.Column(db.Integer, nullable=False)
     medical = db.Column(db.Integer, nullable=False)
     teams = db.Column(db.Integer, nullable=False)
+
+class MissingPerson(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    age = db.Column(db.Integer, nullable=False)  # lower age = higher priority
+    gender = db.Column(db.String(20), nullable=True)
+    last_seen_location = db.Column(db.String(200), nullable=False)
+    last_seen_time = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    reporter_name = db.Column(db.String(100), nullable=False)
+    reporter_phone = db.Column(db.String(30), nullable=True)
+    photo_data = db.Column(db.Text, nullable=True)  # base64 encoded image
+    status = db.Column(db.String(20), nullable=False, default='missing')  # 'missing', 'found'
+    submitted_at = db.Column(db.String(50), nullable=False)
 
 
 # Initialize Database
@@ -299,6 +314,76 @@ def update_depot(depot_id):
     depot.teams = data.get('teams', depot.teams)
     
     db.session.commit()
+    return jsonify({'success': True})
+
+
+# Missing Persons API
+@app.route('/api/missing-persons', methods=['GET', 'POST'])
+def handle_missing_persons():
+    if request.method == 'POST':
+        # Support both JSON and multipart form data
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            data = request.form
+            photo_file = request.files.get('photo')
+            photo_data = None
+            if photo_file and photo_file.filename:
+                file_bytes = photo_file.read()
+                mime = photo_file.content_type or 'image/jpeg'
+                photo_data = f"data:{mime};base64," + base64.b64encode(file_bytes).decode('utf-8')
+        else:
+            data = request.json or {}
+            photo_data = data.get('photo_data')
+
+        name = (data.get('name') or '').strip()
+        age_raw = data.get('age', 0)
+        last_seen_location = (data.get('last_seen_location') or '').strip()
+        reporter_name = (data.get('reporter_name') or '').strip()
+
+        if not name or not last_seen_location:
+            return jsonify({'success': False, 'message': 'Name and last seen location are required'}), 400
+
+        try:
+            age = int(age_raw)
+        except (ValueError, TypeError):
+            age = 0
+
+        mp = MissingPerson(
+            name=name,
+            age=age,
+            gender=data.get('gender', ''),
+            last_seen_location=last_seen_location,
+            last_seen_time=data.get('last_seen_time', ''),
+            description=data.get('description', ''),
+            reporter_name=reporter_name,
+            reporter_phone=data.get('reporter_phone', ''),
+            photo_data=photo_data,
+            status='missing',
+            submitted_at=datetime.now().strftime("%I:%M %p, %d %b %Y")
+        )
+        db.session.add(mp)
+        db.session.commit()
+        return jsonify({'success': True, 'id': mp.id})
+
+    # GET — return sorted by age ascending (youngest = highest priority)
+    persons = MissingPerson.query.order_by(MissingPerson.age.asc()).all()
+    return jsonify([{
+        'id': p.id, 'name': p.name, 'age': p.age, 'gender': p.gender,
+        'last_seen_location': p.last_seen_location, 'last_seen_time': p.last_seen_time,
+        'description': p.description, 'reporter_name': p.reporter_name,
+        'reporter_phone': p.reporter_phone, 'photo_data': p.photo_data,
+        'status': p.status, 'submitted_at': p.submitted_at
+    } for p in persons])
+
+@app.route('/api/missing-persons/<int:person_id>/status', methods=['PUT'])
+def update_missing_person_status(person_id):
+    data = request.json or {}
+    person = MissingPerson.query.get(person_id)
+    if not person:
+        return jsonify({'success': False, 'message': 'Person not found'}), 404
+    new_status = data.get('status', 'missing')
+    if new_status in ('missing', 'found'):
+        person.status = new_status
+        db.session.commit()
     return jsonify({'success': True})
 
 
