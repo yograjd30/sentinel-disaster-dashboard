@@ -2,6 +2,16 @@
 let currentUser = null;
 let notifications = [];
 
+// ── Mobile sidebar ──
+function openSidebar() {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('sidebar-overlay').classList.add('open');
+}
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+}
+
 // Clock updates (IST 12-hour format)
 function updateClock() {
     const now = new Date();
@@ -194,6 +204,13 @@ function switchTab(tabId) {
             if (chart) chart.resize();
         });
     }, 60);
+
+    // Sync mobile bottom nav active state
+    const tabToMobNav = { command: 0, alerts: 1, map: 2, reports: 3 };
+    document.querySelectorAll('#mobile-bottom-nav .mob-nav').forEach((el, i) => {
+        el.classList.toggle('text-primary', i === tabToMobNav[tabId]);
+        el.classList.toggle('text-gray-500', i !== tabToMobNav[tabId]);
+    });
 }
 
 // Maps setup

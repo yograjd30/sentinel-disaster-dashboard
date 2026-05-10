@@ -58,3 +58,69 @@ body {
     -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* ── Mobile Sidebar ── */
+#sidebar {
+    transition: transform 0.3s ease;
+}
+@media (max-width: 767px) {
+    #sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 40;
+        transform: translateX(-100%);
+        width: 80vw;
+        max-width: 280px;
+    }
+    #sidebar.open {
+        transform: translateX(0);
+    }
+    #sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 39;
+        backdrop-filter: blur(2px);
+    }
+    #sidebar-overlay.open {
+        display: block;
+    }
+    /* Hide status text on small screens */
+    .status-text { display: none; }
+    /* Bottom safe area padding for content */
+    #content-area { padding-bottom: 5rem; }
+}
+
+/* ── Mobile Bottom Nav ── */
+#mobile-bottom-nav {
+    display: none;
+}
+@media (max-width: 767px) {
+    #mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: #0f172a;
+        border-top: 1px solid #1e293b;
+        z-index: 30;
+        height: 60px;
+    }
+}
+
+/* ── Responsive login ── */
+@media (max-width: 767px) {
+    #login-left-panel { display: none; }
+    #login-right-panel { width: 100% !important; }
+}
+
+/* ── Responsive AI table ── */
+@media (max-width: 767px) {
+    .ai-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+
+/* Touch-friendly tap targets */
+@media (max-width: 767px) {
+    .nav-link { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+}
