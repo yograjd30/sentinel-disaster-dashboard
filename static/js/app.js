@@ -2,6 +2,122 @@
 let currentUser = null;
 let notifications = [];
 
+// ── Offline/PWA Sync state & helpers ──
+function getOfflineUsers() {
+    const defaults = [
+        { username: 'admin', password: '123', role: 'admin', id: 1 },
+        { username: 'citizen', password: '123', role: 'citizen', id: 2 },
+        { username: 'rescue', password: '123', role: 'rescue', id: 3 }
+    ];
+    const stored = localStorage.getItem('sentinel_offline_users');
+    if (stored) {
+        try {
+            const parsed = JSON.parse(stored);
+            const merged = [...defaults];
+            parsed.forEach(p => {
+                if (!merged.some(m => m.username === p.username)) {
+                    merged.push(p);
+                }
+            });
+            return merged;
+        } catch (e) {
+            return defaults;
+        }
+    }
+    return defaults;
+}
+
+function saveOfflineUser(username, password, role, id) {
+    const users = getOfflineUsers();
+    if (!users.some(u => u.username === username)) {
+        users.push({ username, password, role, id });
+        localStorage.setItem('sentinel_offline_users', JSON.stringify(users));
+    }
+}
+
+// Intercept Cache API to allow reading/writing cached API data in offline mode
+async function getCachedData(url) {
+    if ('caches' in window) {
+        try {
+            const cache = await caches.open('sentinel-api-v1');
+            const response = await cache.match(url);
+            if (response) {
+                return await response.json();
+            }
+        } catch (e) {
+            console.error('[Offline] Error reading Cache API:', e);
+        }
+    }
+    return null;
+}
+
+async function updateCachedData(url, data) {
+    if ('caches' in window) {
+        try {
+            const cache = await caches.open('sentinel-api-v1');
+            const response = new Response(JSON.stringify(data), {
+                headers: { 'Content-Type': 'application/json' }
+            });
+            await cache.put(url, response);
+            console.log(`[Offline] Successfully updated Cache API for ${url}`);
+        } catch (e) {
+            console.error('[Offline] Error writing Cache API:', e);
+        }
+    }
+}
+
+// Queue system for offline POST/PUT actions
+function queueOfflineAction(url, method, body, friendlyName) {
+    const queue = JSON.parse(localStorage.getItem('sentinel_sync_queue') || '[]');
+    const id = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    queue.push({ id, url, method, body, type: 'json', friendlyName });
+    localStorage.setItem('sentinel_sync_queue', JSON.stringify(queue));
+    
+    // Add custom offline status notification
+    addNotification(`[Offline] ${friendlyName} queued for sync.`, 'warning');
+}
+
+// Function to trigger a sync of all queued offline operations
+async function syncOfflineQueue() {
+    if (!navigator.onLine) return;
+    const queue = JSON.parse(localStorage.getItem('sentinel_sync_queue') || '[]');
+    if (queue.length === 0) return;
+
+    console.log(`[Offline Sync] Syncing ${queue.length} pending items.`);
+    addNotification(`Syncing ${queue.length} offline action(s)...`, 'info');
+
+    const remaining = [];
+    let successCount = 0;
+
+    for (const item of queue) {
+        try {
+            const res = await fetch(item.url, {
+                method: item.method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(item.body)
+            });
+
+            if (res.ok) {
+                successCount++;
+            } else {
+                console.warn(`[Offline Sync] Failed to sync item:`, item, res.status);
+                remaining.push(item);
+            }
+        } catch (err) {
+            console.error(`[Offline Sync] Connection error for sync item:`, err);
+            remaining.push(item);
+        }
+    }
+
+    localStorage.setItem('sentinel_sync_queue', JSON.stringify(remaining));
+
+    if (successCount > 0) {
+        addNotification(`Successfully synced ${successCount} offline action(s)!`, 'success');
+        fetchData(); // reload fresh server data
+    }
+}
+
+
 // ── Mobile sidebar ──
 function openSidebar() {
     document.getElementById('sidebar').classList.add('open');
@@ -41,6 +157,31 @@ async function handleRegister(e) {
     const errEl    = document.getElementById('register-error');
     const btn      = document.getElementById('reg-submit-btn');
     btn.disabled = true; btn.textContent = 'Creating...';
+
+    if (!navigator.onLine) {
+        const offlineUsers = getOfflineUsers();
+        if (offlineUsers.some(u => u.username.toLowerCase() === username.toLowerCase())) {
+            errEl.textContent = 'Username already exists (offline validation).';
+            errEl.classList.remove('hidden');
+            btn.disabled = false; btn.textContent = 'Create Account';
+            return;
+        }
+        
+        // Save locally for offline login capability
+        const mockId = Date.now();
+        saveOfflineUser(username, password, role, mockId);
+        
+        // Queue the registration so it goes to the DB when back online
+        queueOfflineAction('/api/register', 'POST', { username, password, role }, `Register user "${username}"`);
+        
+        hideRegisterPanel();
+        document.getElementById('login-username').value = username;
+        document.getElementById('login-password').value = password;
+        alert('Account created offline! You can now sign in.');
+        btn.disabled = false; btn.textContent = 'Create Account';
+        return;
+    }
+
     try {
         const res  = await fetch('/api/register', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -48,6 +189,7 @@ async function handleRegister(e) {
         });
         const data = await res.json();
         if (data.success) {
+            saveOfflineUser(username, password, role, data.id);
             hideRegisterPanel();
             // Auto-fill login form with new credentials
             document.getElementById('login-username').value = username;
@@ -92,6 +234,27 @@ async function handleLogin(e = null) {
     if (e) e.preventDefault();
     const user = document.getElementById('login-username').value;
     const pass = document.getElementById('login-password').value;
+
+    if (!navigator.onLine) {
+        const offlineUsers = getOfflineUsers();
+        const matched = offlineUsers.find(u => u.username === user && u.password === pass);
+        if (matched) {
+            currentUser = { success: true, username: matched.username, role: matched.role, id: matched.id };
+            document.getElementById('login-modal').classList.add('hidden');
+            setupProfile();
+            addNotification(`Logged in in offline mode.`, 'success');
+            fetchData();
+            // Give DOM time to settle before invalidating map sizes
+            setTimeout(() => {
+                if (miniMap) miniMap.invalidateSize(true);
+                if (fullMap) fullMap.invalidateSize(true);
+            }, 400);
+            return;
+        } else {
+            alert('Invalid credentials (offline mode)');
+            return;
+        }
+    }
     
     try {
         const res = await fetch('/api/login', {
@@ -102,6 +265,7 @@ async function handleLogin(e = null) {
         const data = await res.json();
         if (data.success) {
             currentUser = data;
+            saveOfflineUser(user, pass, data.role, data.id);
             document.getElementById('login-modal').classList.add('hidden');
             setupProfile();
             fetchData();
@@ -306,6 +470,17 @@ function initMaps() {
 
 document.addEventListener('DOMContentLoaded', () => {
     initMaps();
+    
+    // Register online sync listener
+    window.addEventListener('online', () => {
+        syncOfflineQueue();
+    });
+
+    // Check for offline sync on load
+    if (navigator.onLine) {
+        syncOfflineQueue();
+    }
+
     // Fetch data only after login, initially just check session if it existed, but we have a modal.
     setInterval(() => {
         if (currentUser) fetchData();
@@ -428,17 +603,50 @@ async function saveResourceEdit(e) {
     const water = document.getElementById('edit-water').value;
     const medical = document.getElementById('edit-medical').value;
     const teams = document.getElementById('edit-teams').value;
+
+    const payload = {
+        food: parseInt(food.replace(/,/g, '')),
+        water: parseInt(water.replace(/,/g, '')),
+        medical: parseInt(medical.replace(/,/g, '')),
+        teams: parseInt(teams.replace(/,/g, ''))
+    };
     
+    if (!navigator.onLine) {
+        queueOfflineAction(`/api/depots/${depotId}`, 'PUT', payload, `Update Depot ${depotId.toUpperCase()} inventory`);
+
+        // Update local SW API cache so reload shows the changes
+        const depots = await getCachedData('/api/depots');
+        if (depots) {
+            const updated = depots.map(d => {
+                if (d.id === depotId) {
+                    return { ...d, ...payload };
+                }
+                return d;
+            });
+            await updateCachedData('/api/depots', updated);
+        }
+
+        // Update local DOM card
+        const card = document.getElementById('depot-card-' + depotId);
+        if (card) {
+            const values = card.querySelectorAll('.text-xl.font-bold.text-white');
+            if (values.length >= 4) {
+                values[0].innerText = Number(payload.food).toLocaleString();
+                values[1].innerText = Number(payload.water).toLocaleString();
+                values[2].innerText = Number(payload.medical).toLocaleString();
+                values[3].innerText = Number(payload.teams).toLocaleString();
+            }
+        }
+        closeEditModal();
+        addNotification(`[Offline] Inventory updated for ${depotId.toUpperCase()} Depot`, 'success');
+        return;
+    }
+
     try {
         const res = await fetch(`/api/depots/${depotId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                food: parseInt(food.replace(/,/g, '')),
-                water: parseInt(water.replace(/,/g, '')),
-                medical: parseInt(medical.replace(/,/g, '')),
-                teams: parseInt(teams.replace(/,/g, ''))
-            })
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
         
@@ -752,20 +960,58 @@ async function submitReport(e) {
     const desc = document.getElementById('report-description').value;
     const urgency = document.getElementById('report-urgency')?.value || 'medium';
     const imageUrl = document.getElementById('report-image-url')?.value || '';
+
+    const payload = {
+        author_id: currentUser.id,
+        author_name: currentUser.username,
+        author_role: currentUser.role,
+        location: loc,
+        description: desc,
+        urgency: urgency,
+        image_url: imageUrl
+    };
+
+    if (!navigator.onLine) {
+        queueOfflineAction('/api/reports', 'POST', payload, `Submit report for ${loc}`);
+
+        // Update local SW API cache for reports
+        const reports = await getCachedData('/api/reports') || [];
+        const mockReport = {
+            id: -Date.now(),
+            author_name: currentUser.username,
+            author_role: currentUser.role,
+            location: loc,
+            description: desc,
+            urgency: urgency,
+            timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) + ', ' + new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
+            risk_percentage: 30 + (desc.toLowerCase().includes('flood') || desc.toLowerCase().includes('cyclone') ? 40 : 0) + (desc.toLowerCase().includes('help') ? 20 : 0)
+        };
+        reports.unshift(mockReport);
+        await updateCachedData('/api/reports', reports);
+
+        // Update stats in cache
+        const stats = await getCachedData('/api/stats');
+        if (stats) {
+            if (urgency === 'high' || urgency === 'critical') {
+                stats.active_alerts = (stats.active_alerts || 0) + 1;
+            }
+            await updateCachedData('/api/stats', stats);
+        }
+
+        document.getElementById('field-report-form').reset();
+        const medBtn = document.querySelector('[data-urgency="medium"]');
+        if (medBtn) setUrgency('medium', medBtn);
+        addNotification(`[Offline] Field Report queued for ${loc}`, 'warning');
+        
+        fetchReports(); // re-render using the updated cache
+        return;
+    }
     
     try {
         const res = await fetch('/api/reports', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                author_id: currentUser.id,
-                author_name: currentUser.username,
-                author_role: currentUser.role,
-                location: loc,
-                description: desc,
-                urgency: urgency,
-                image_url: imageUrl
-            })
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (data.success) {
@@ -1166,10 +1412,52 @@ async function handleAddResource(e) {
     const teams   = parseInt(document.getElementById('new-resource-teams').value) || 0;
     const errEl   = document.getElementById('add-resource-error');
 
+    const payload = {name, lat, lng, food, water, medical, teams};
+
+    if (!navigator.onLine) {
+        queueOfflineAction('/api/depots', 'POST', payload, `Add resource depot "${name}"`);
+
+        // Update local SW API cache for depots
+        const depots = await getCachedData('/api/depots') || [];
+        const mockId = name.toLowerCase().replace(/ /g, '_') + '_' + Date.now();
+        const mockDepot = {
+            id: mockId,
+            name,
+            location_coords: `${lat}, ${lng}`,
+            food, water, medical, teams
+        };
+        depots.push(mockDepot);
+        await updateCachedData('/api/depots', depots);
+
+        // Update stats in cache
+        const stats = await getCachedData('/api/stats');
+        if (stats) {
+            stats.total_resources = (stats.total_resources || 0) + 1;
+            stats.deployed_teams = (stats.deployed_teams || 0) + teams;
+            await updateCachedData('/api/stats', stats);
+        }
+
+        closeAddResourceModal();
+        addNotification(`[Offline] Depot "${name}" added locally.`, 'success');
+        appendDepotCard(mockDepot);
+
+        if (fullMap) {
+            const icon = L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style="background:#10b981;width:16px;height:16px;border-radius:50%;border:2px solid white;box-shadow:0 0 10px #10b981;"></div>`,
+                iconSize: [16, 16], iconAnchor: [8, 8]
+            });
+            L.marker([lat, lng], {icon})
+                .bindPopup(`<b>${name}</b><br>Food: ${food} | Water: ${water}<br>Medical: ${medical} | Teams: ${teams}`)
+                .addTo(fullMap);
+        }
+        return;
+    }
+
     try {
         const res  = await fetch('/api/depots', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({name, lat, lng, food, water, medical, teams})
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (data.success) {
@@ -1272,15 +1560,74 @@ async function submitMissingPersonReport(e) {
     btn.disabled = true;
     btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Submitting...';
 
+    const name = document.getElementById('mp-name').value.trim();
+    const age = parseInt(document.getElementById('mp-age').value) || 0;
+    const gender = document.getElementById('mp-gender').value;
+    const last_seen_location = document.getElementById('mp-location').value.trim();
+    const last_seen_time = document.getElementById('mp-time').value;
+    const description = document.getElementById('mp-description').value.trim();
+    const reporter_name = document.getElementById('mp-reporter-name').value.trim();
+    const reporter_phone = document.getElementById('mp-reporter-phone').value.trim();
+
+    const payload = {
+        name, age, gender, last_seen_location, last_seen_time, description, reporter_name, reporter_phone,
+        photo_data: null
+    };
+
+    const proceedOffline = async () => {
+        queueOfflineAction('/api/missing-persons', 'POST', payload, `Report missing person: ${name}`);
+
+        // Update local SW API cache for missing persons
+        const persons = await getCachedData('/api/missing-persons') || [];
+        const mockPerson = {
+            id: -Date.now(),
+            name, age, gender, last_seen_location, last_seen_time, description, reporter_name, reporter_phone,
+            photo_data: payload.photo_data,
+            status: 'missing',
+            submitted_at: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) + ', ' + new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })
+        };
+        persons.push(mockPerson);
+        // Youngest first (priority sorting)
+        persons.sort((a, b) => a.age - b.age);
+        await updateCachedData('/api/missing-persons', persons);
+
+        successEl.classList.remove('hidden');
+        document.getElementById('missing-person-form').classList.add('hidden');
+        btn.classList.add('hidden');
+        addNotification(`[Offline] Missing person report queued: ${name}`, 'warning');
+        
+        if (currentUser) fetchMissingPersons();
+        setTimeout(() => closeMissingPersonModal(), 3000);
+        
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Submit Missing Person Report';
+        lucide.createIcons();
+    };
+
+    if (!navigator.onLine) {
+        const photoInput = document.getElementById('missing-photo-input');
+        if (photoInput.files.length > 0) {
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                payload.photo_data = event.target.result;
+                await proceedOffline();
+            };
+            reader.readAsDataURL(photoInput.files[0]);
+        } else {
+            await proceedOffline();
+        }
+        return;
+    }
+
     const formData = new FormData();
-    formData.append('name', document.getElementById('mp-name').value.trim());
-    formData.append('age', document.getElementById('mp-age').value);
-    formData.append('gender', document.getElementById('mp-gender').value);
-    formData.append('last_seen_location', document.getElementById('mp-location').value.trim());
-    formData.append('last_seen_time', document.getElementById('mp-time').value);
-    formData.append('description', document.getElementById('mp-description').value.trim());
-    formData.append('reporter_name', document.getElementById('mp-reporter-name').value.trim());
-    formData.append('reporter_phone', document.getElementById('mp-reporter-phone').value.trim());
+    formData.append('name', name);
+    formData.append('age', age);
+    formData.append('gender', gender);
+    formData.append('last_seen_location', last_seen_location);
+    formData.append('last_seen_time', last_seen_time);
+    formData.append('description', description);
+    formData.append('reporter_name', reporter_name);
+    formData.append('reporter_phone', reporter_phone);
 
     const photoInput = document.getElementById('missing-photo-input');
     if (photoInput.files.length > 0) {
@@ -1297,7 +1644,7 @@ async function submitMissingPersonReport(e) {
             successEl.classList.remove('hidden');
             document.getElementById('missing-person-form').classList.add('hidden');
             btn.classList.add('hidden');
-            addNotification('New missing person report submitted \u2014 rescue teams notified.', 'warning');
+            addNotification('New missing person report submitted — rescue teams notified.', 'warning');
             // Refresh the list if logged in
             if (currentUser) fetchMissingPersons();
             // Auto-close after 3s
@@ -1465,6 +1812,25 @@ async function markPersonFound(personId, btn) {
     if (!currentUser || (currentUser.role !== 'rescue' && currentUser.role !== 'admin')) return;
     btn.disabled = true;
     btn.innerHTML = '<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Updating...';
+
+    if (!navigator.onLine) {
+        queueOfflineAction(`/api/missing-persons/${personId}/status`, 'PUT', { status: 'found' }, `Mark person #${personId} as found`);
+
+        // Update local SW API cache for missing persons
+        const persons = await getCachedData('/api/missing-persons') || [];
+        const updated = persons.map(p => {
+            if (p.id === personId) {
+                return { ...p, status: 'found' };
+            }
+            return p;
+        });
+        await updateCachedData('/api/missing-persons', updated);
+
+        addNotification(`[Offline] Person marked as found.`, 'success');
+        fetchMissingPersons(); // re-render list with new status
+        return;
+    }
+
     try {
         const res = await fetch(`/api/missing-persons/${personId}/status`, {
             method: 'PUT',

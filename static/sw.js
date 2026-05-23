@@ -96,8 +96,14 @@ self.addEventListener('fetch', (event) => {
             if (cachedResponse) {
               return cachedResponse;
             }
-            // Return empty JSON array as last resort for API
-            return new Response(JSON.stringify([]), {
+            // Return suitable default structure as last resort for specific APIs
+            const fallbackMap = {
+              '/api/stats': { total_resources: 0, active_alerts: 0, deployed_teams: 0, safe_zones_active: 0 },
+              '/api/trend-data': { years: [], risk_levels: [] },
+              '/api/demand-supply': { categories: [], demand: [], supply: [] }
+            };
+            const fallback = fallbackMap[url.pathname] || [];
+            return new Response(JSON.stringify(fallback), {
               headers: { 'Content-Type': 'application/json' },
             });
           });
