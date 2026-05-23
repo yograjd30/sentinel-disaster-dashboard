@@ -37,7 +37,7 @@ function saveOfflineUser(username, password, role, id) {
 
 // Intercept Cache API to allow reading/writing cached API data in offline mode
 async function getCachedData(url) {
-    if ('caches' in window) {
+    if ('caches' in window && window.caches !== undefined) {
         try {
             const cache = await caches.open('sentinel-api-v1');
             const response = await cache.match(window.location.origin + url);
@@ -45,14 +45,30 @@ async function getCachedData(url) {
                 return await response.json();
             }
         } catch (e) {
-            console.error('[Offline] Error reading Cache API:', e);
+            console.warn('[Offline] Cache API read failed, using localStorage fallback:', e);
         }
+    }
+    // Reliable localStorage fallback
+    try {
+        const stored = localStorage.getItem('sentinel_api_cache_' + url);
+        if (stored) {
+            return JSON.parse(stored);
+        }
+    } catch (e) {
+        console.error('[Offline] localStorage read failed:', e);
     }
     return null;
 }
 
 async function updateCachedData(url, data) {
-    if ('caches' in window) {
+    // Keep localStorage updated as a reliable fallback
+    try {
+        localStorage.setItem('sentinel_api_cache_' + url, JSON.stringify(data));
+    } catch (e) {
+        console.warn('[Offline] localStorage write failed:', e);
+    }
+
+    if ('caches' in window && window.caches !== undefined) {
         try {
             const cache = await caches.open('sentinel-api-v1');
             const response = new Response(JSON.stringify(data), {
@@ -64,6 +80,34 @@ async function updateCachedData(url, data) {
             console.error('[Offline] Error writing Cache API:', e);
         }
     }
+}
+
+// Global fetch API wrapper for fully robust offline capability
+async function fetchAPI(url) {
+    try {
+        const res = await fetch(url);
+        if (res.ok) {
+            const data = await res.json();
+            await updateCachedData(url, data);
+            return data;
+        }
+    } catch (err) {
+        console.warn(`[Offline] Fetch failed for ${url}, trying local cache...`, err);
+    }
+    
+    // Fall back to local cache (Service Worker or localStorage)
+    const cached = await getCachedData(url);
+    if (cached !== null) {
+        return cached;
+    }
+    
+    // Safe default empty structures if no cache exists
+    const fallbackMap = {
+        '/api/stats': { total_resources: 0, active_alerts: 0, deployed_teams: 0, safe_zones_active: 0 },
+        '/api/trend-data': { years: [], risk_levels: [] },
+        '/api/demand-supply': { categories: [], demand: [], supply: [] }
+    };
+    return fallbackMap[url] || [];
 }
 
 // Queue system for offline POST/PUT actions
@@ -420,7 +464,10 @@ function switchTab(tabId) {
         el.classList.remove('text-primary', 'bg-gray-800');
         el.classList.add('text-gray-400');
     });
-    const activeLink = document.querySelector(`.nav-link[onclick="switchTab('${tabId}')"]`);
+    const activeLink = Array.from(document.querySelectorAll('.nav-link')).find(el => {
+        const attr = el.getAttribute('onclick') || '';
+        return attr.includes(`switchTab('${tabId}')`);
+    });
     if(activeLink) {
         activeLink.classList.remove('text-gray-400');
         activeLink.classList.add('text-primary', 'bg-gray-800');
@@ -490,8 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Fetch Data from API
 async function fetchData() {
     try {
-        const statsRes = await fetch('/api/stats');
-        const stats = await statsRes.json();
+        const stats = await fetchAPI('/api/stats');
         document.getElementById('stat-alerts').innerText = stats.active_alerts;
         document.getElementById('stat-teams').innerText = stats.deployed_teams;
         document.getElementById('stat-resources').innerText = stats.total_resources;
@@ -501,24 +547,19 @@ async function fetchData() {
             document.getElementById('alert-badge').innerText = stats.active_alerts;
         }
 
-        const alertsRes = await fetch('/api/alerts');
-        const alerts = await alertsRes.json();
+        const alerts = await fetchAPI('/api/alerts');
         renderAlerts(alerts);
 
-        const resRes = await fetch('/api/resources');
-        window.allResources = await resRes.json();
+        window.allResources = await fetchAPI('/api/resources');
         renderResources(window.allResources);
 
-        const weatherRes = await fetch('/api/weather');
-        const weather = await weatherRes.json();
+        const weather = await fetchAPI('/api/weather');
         renderWeather(weather);
 
-        const incRes = await fetch('/api/incidents');
-        const incidents = await incRes.json();
+        const incidents = await fetchAPI('/api/incidents');
         renderIncidentsOnMap(incidents);
 
-        const depotRes = await fetch('/api/depots');
-        const depots = await depotRes.json();
+        const depots = await fetchAPI('/api/depots');
         renderDepots(depots);
         
         fetchReports();
@@ -1027,8 +1068,7 @@ async function submitReport(e) {
 
 async function fetchReports() {
     try {
-        const res = await fetch('/api/reports');
-        const reports = await res.json();
+        const reports = await fetchAPI('/api/reports');
         renderReports(reports);
     } catch (err) {}
 }
@@ -1167,8 +1207,7 @@ async function renderDemandSupplyChart() {
     if (!ctx) return;
     
     try {
-        const res = await fetch('/api/demand-supply');
-        const data = await res.json();
+        const data = await fetchAPI('/api/demand-supply');
         demandChartInst = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -1343,11 +1382,11 @@ function setMapFilter(filter) {
     if (filter === 'incidents') {
         // Re-render incident markers (already on map, just make sure visible)
         if (fullMap) fullMapMarkers.forEach(m => fullMap.addTo ? null : null); // markers already added
-        fetch('/api/incidents').then(r => r.json()).then(renderIncidentsOnMap);
+        fetchAPI('/api/incidents').then(renderIncidentsOnMap);
     } else if (filter === 'resources') {
         // Clear incident markers temporarily and show depot locations
         if (fullMap) fullMapMarkers.forEach(m => fullMap.removeLayer(m));
-        fetch('/api/depots').then(r => r.json()).then(depots => {
+        fetchAPI('/api/depots').then(depots => {
             depots.forEach(d => {
                 const [lat, lng] = d.location_coords.split(',').map(Number);
                 if (!isNaN(lat) && !isNaN(lng) && fullMap) {
@@ -1371,7 +1410,7 @@ function setMapFilter(filter) {
             'Chennai': [13.082, 80.270], 'Kolkata': [22.572, 88.363],
             'Bengaluru': [12.971, 77.594], 'Hyderabad': [17.385, 78.486]
         };
-        fetch('/api/weather').then(r => r.json()).then(weatherData => {
+        fetchAPI('/api/weather').then(weatherData => {
             weatherData.forEach(w => {
                 const coords = weatherCoords[w.region];
                 if (!coords || !fullMap) return;
@@ -1668,8 +1707,7 @@ async function submitMissingPersonReport(e) {
 
 async function fetchMissingPersons() {
     try {
-        const res = await fetch('/api/missing-persons');
-        const persons = await res.json();
+        const persons = await fetchAPI('/api/missing-persons');
         renderMissingPersons(persons);
     } catch (err) {
         console.error('Failed to fetch missing persons:', err);
