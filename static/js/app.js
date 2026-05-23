@@ -40,7 +40,7 @@ async function getCachedData(url) {
     if ('caches' in window) {
         try {
             const cache = await caches.open('sentinel-api-v1');
-            const response = await cache.match(url);
+            const response = await cache.match(window.location.origin + url);
             if (response) {
                 return await response.json();
             }
@@ -58,7 +58,7 @@ async function updateCachedData(url, data) {
             const response = new Response(JSON.stringify(data), {
                 headers: { 'Content-Type': 'application/json' }
             });
-            await cache.put(url, response);
+            await cache.put(window.location.origin + url, response);
             console.log(`[Offline] Successfully updated Cache API for ${url}`);
         } catch (e) {
             console.error('[Offline] Error writing Cache API:', e);
@@ -1003,7 +1003,7 @@ async function submitReport(e) {
         if (medBtn) setUrgency('medium', medBtn);
         addNotification(`[Offline] Field Report queued for ${loc}`, 'warning');
         
-        fetchReports(); // re-render using the updated cache
+        renderReports(reports); // re-render instantly without round-trip delay
         return;
     }
     
@@ -1029,62 +1029,66 @@ async function fetchReports() {
     try {
         const res = await fetch('/api/reports');
         const reports = await res.json();
-        const container = document.getElementById('reports-list');
-        const noMsg = document.getElementById('no-reports-msg');
-        const countEl = document.getElementById('reports-count');
-        
-        // Update count
-        if (countEl) countEl.textContent = `${reports.length} submitted`;
-        
-        // Remove old report cards (keep no-reports-msg)
-        Array.from(container.children).forEach(child => {
-            if (child.id !== 'no-reports-msg') child.remove();
-        });
+        renderReports(reports);
+    } catch (err) {}
+}
 
-        if (reports.length === 0) {
-            if (noMsg) noMsg.style.display = 'flex';
-            return;
-        }
-        if (noMsg) noMsg.style.display = 'none';
+function renderReports(reports) {
+    const container = document.getElementById('reports-list');
+    const noMsg = document.getElementById('no-reports-msg');
+    const countEl = document.getElementById('reports-count');
+    
+    // Update count
+    if (countEl) countEl.textContent = `${reports.length} submitted`;
+    
+    // Remove old report cards (keep no-reports-msg)
+    Array.from(container.children).forEach(child => {
+        if (child.id !== 'no-reports-msg') child.remove();
+    });
 
-        reports.forEach(r => {
-            const urgencyColors = {
-                low:      'text-primary border-primary/40',
-                medium:   'text-primary border-primary/40',
-                high:     'text-warning border-warning/40',
-                critical: 'text-danger border-danger/40'
-            };
-            const urgency = r.urgency || 'medium';
-            const urgencyClass = urgencyColors[urgency] || urgencyColors.medium;
-            let riskColor = r.risk_percentage > 70 ? 'text-danger border-danger/30' : r.risk_percentage > 40 ? 'text-warning border-warning/30' : 'text-success border-success/30';
-            
-            const card = document.createElement('div');
-            card.className = 'bg-[#0d1421] border border-[#1e2d3d] rounded-xl p-4';
-            card.innerHTML = `
-                <div class="flex justify-between items-start mb-2">
-                    <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-full bg-[#1a2535] flex items-center justify-center flex-shrink-0">
-                            <i data-lucide="user" class="w-3.5 h-3.5 text-gray-400"></i>
-                        </div>
-                        <div>
-                            <div class="text-white font-medium text-sm">${r.author_name} <span class="text-xs text-gray-500 ml-1 capitalize">${r.author_role}</span></div>
-                            <div class="text-xs text-gray-500 flex items-center mt-0.5"><i data-lucide="map-pin" class="w-3 h-3 mr-1"></i>${r.location} &bull; ${r.timestamp}</div>
-                        </div>
+    if (reports.length === 0) {
+        if (noMsg) noMsg.style.display = 'flex';
+        return;
+    }
+    if (noMsg) noMsg.style.display = 'none';
+
+    reports.forEach(r => {
+        const urgencyColors = {
+            low:      'text-primary border-primary/40',
+            medium:   'text-primary border-primary/40',
+            high:     'text-warning border-warning/40',
+            critical: 'text-danger border-danger/40'
+        };
+        const urgency = r.urgency || 'medium';
+        const urgencyClass = urgencyColors[urgency] || urgencyColors.medium;
+        let riskColor = r.risk_percentage > 70 ? 'text-danger border-danger/30' : r.risk_percentage > 40 ? 'text-warning border-warning/30' : 'text-success border-success/30';
+        
+        const card = document.createElement('div');
+        card.className = 'bg-[#0d1421] border border-[#1e2d3d] rounded-xl p-4';
+        card.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full bg-[#1a2535] flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="user" class="w-3.5 h-3.5 text-gray-400"></i>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${urgencyClass}">${urgency}</span>
-                        <div class="px-2 py-1 bg-[#0a1520] rounded-lg border ${riskColor} flex flex-col items-center justify-center min-w-[44px]">
-                            <span class="text-[10px] text-gray-500">Risk</span>
-                            <span class="font-bold text-sm ${riskColor.split(' ')[0]}">${r.risk_percentage}%</span>
-                        </div>
+                    <div>
+                        <div class="text-white font-medium text-sm">${r.author_name} <span class="text-xs text-gray-500 ml-1 capitalize">${r.author_role}</span></div>
+                        <div class="text-xs text-gray-500 flex items-center mt-0.5"><i data-lucide="map-pin" class="w-3.5 h-3.5 mr-1"></i>${r.location} &bull; ${r.timestamp}</div>
                     </div>
                 </div>
-                <p class="text-sm text-gray-400 border-t border-[#1e2d3d] pt-2 mt-2">${r.description}</p>
-            `;
-            container.appendChild(card);
-        });
-        lucide.createIcons();
-    } catch (err) {}
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${urgencyClass}">${urgency}</span>
+                    <div class="px-2 py-1 bg-[#0a1520] rounded-lg border ${riskColor} flex flex-col items-center justify-center min-w-[44px]">
+                        <span class="text-[10px] text-gray-500">Risk</span>
+                        <span class="font-bold text-sm ${riskColor.split(' ')[0]}">${r.risk_percentage}%</span>
+                    </div>
+                </div>
+            </div>
+            <p class="text-sm text-gray-400 border-t border-[#1e2d3d] pt-2 mt-2">${r.description}</p>
+        `;
+        container.appendChild(card);
+    });
+    lucide.createIcons();
 }
 
 // New Charts
@@ -1596,7 +1600,7 @@ async function submitMissingPersonReport(e) {
         btn.classList.add('hidden');
         addNotification(`[Offline] Missing person report queued: ${name}`, 'warning');
         
-        if (currentUser) fetchMissingPersons();
+        if (currentUser) renderMissingPersons(persons); // re-render instantly with 0ms delay
         setTimeout(() => closeMissingPersonModal(), 3000);
         
         btn.disabled = false;
@@ -1827,7 +1831,7 @@ async function markPersonFound(personId, btn) {
         await updateCachedData('/api/missing-persons', updated);
 
         addNotification(`[Offline] Person marked as found.`, 'success');
-        fetchMissingPersons(); // re-render list with new status
+        renderMissingPersons(updated); // re-render list instantly with 0ms delay
         return;
     }
 
