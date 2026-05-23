@@ -1,6 +1,6 @@
 import os
 import base64
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from datetime import datetime, timezone
@@ -157,6 +157,18 @@ with app.app_context():
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/sw.js')
+def service_worker():
+    return send_from_directory(app.static_folder, 'sw.js', mimetype='application/javascript')
+
+@app.route('/manifest.json')
+def manifest():
+    return send_from_directory(app.static_folder, 'manifest.json', mimetype='application/json')
+
+@app.route('/offline')
+def offline():
+    return render_template('offline.html')
 
 @app.route('/api/alerts', methods=['GET'])
 def get_alerts():

@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SENTINEL — Smart Disaster Resource Allocation</title>
+    <!-- PWA Support -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0ea5e9">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SENTINEL">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -1192,6 +1199,39 @@
     <script src="/static/js/app.js?v=3"></script>
     <script>
         lucide.createIcons();
+
+        // ── Service Worker Registration ──
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                    .then((reg) => {
+                        console.log('[SENTINEL] Service Worker registered, scope:', reg.scope);
+                    })
+                    .catch((err) => {
+                        console.warn('[SENTINEL] Service Worker registration failed:', err);
+                    });
+            });
+        }
+
+        // ── Offline / Online Banner ──
+        (function() {
+            const banner = document.createElement('div');
+            banner.id = 'offline-banner';
+            banner.innerHTML = '<span style="display:inline-flex;align-items:center;gap:8px"><span style="width:8px;height:8px;background:#ef4444;border-radius:50%;animation:blink 1s infinite"></span> You are offline — showing cached data</span>';
+            banner.style.cssText = 'display:none;position:fixed;bottom:70px;left:50%;transform:translateX(-50%);z-index:9999;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;padding:8px 20px;border-radius:999px;font-size:13px;font-weight:600;backdrop-filter:blur(8px);white-space:nowrap;';
+            document.body.appendChild(banner);
+
+            const style = document.createElement('style');
+            style.textContent = '@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}';
+            document.head.appendChild(style);
+
+            function updateOnlineStatus() {
+                banner.style.display = navigator.onLine ? 'none' : 'block';
+            }
+            window.addEventListener('online', updateOnlineStatus);
+            window.addEventListener('offline', updateOnlineStatus);
+            updateOnlineStatus();
+        })();
     </script>
 </body>
 </html>

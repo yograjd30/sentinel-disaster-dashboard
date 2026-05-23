@@ -1,0 +1,26 @@
+{
+  "name": "SENTINEL — Smart Disaster Resource Allocation",
+  "short_name": "SENTINEL",
+  "description": "Real-time disaster response coordination and resource management platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020817",
+  "theme_color": "#0ea5e9",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["government", "utilities"],
+  "lang": "en"
+}
